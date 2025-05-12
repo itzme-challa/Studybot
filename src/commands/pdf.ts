@@ -1,5 +1,6 @@
 import { Context } from 'telegraf';
 import createDebug from 'debug';
+import { isMemberOfBoth } from '../utils/checkMembership';
 
 const debug = createDebug('bot:pdf_handler');
 
@@ -52,6 +53,25 @@ const handlePdfCommand = async (ctx: Context, keyword: string) => {
 
   debug(`Handling PDF command for: ${keyword}`);
 
+  const isMember = await isMemberOfBoth(ctx);
+  if (!isMember) {
+    const user = ctx.from;
+    const channelLink = '@NEETUG_26';
+    const groupLink = '@neetpw01';
+
+    if (user) {
+      await ctx.telegram.sendMessage(
+        user.id,
+        `Hey ${user.first_name},\n\nTo access this file, please **join both the channel and the group**:\n\n👉 [Join Channel ${channelLink}](https://t.me/${channelLink.replace('@', '')})\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
+        {
+          parse_mode: 'Markdown',
+          disable_web_page_preview: true,
+        }
+      );
+    }
+    return;
+  }
+
   await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
 
   await ctx.telegram.copyMessage(
@@ -75,7 +95,7 @@ const pdf = () => async (ctx: Context) => {
       }
     }
 
-    // Handle plain text commands like "neetpyq1"
+    // Handle plain text keywords like "neetpyq1"
     if (message && 'text' in message) {
       const keyword = message.text.trim().toLowerCase();
       await handlePdfCommand(ctx, keyword);
