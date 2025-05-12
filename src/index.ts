@@ -22,7 +22,7 @@ const bot = new Telegraf(BOT_TOKEN);
 bot.command('about', about());
 bot.command('help', help());
 
-// /users (admin-only)
+// Admin-only command: /users
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
@@ -44,29 +44,21 @@ bot.command('users', async (ctx) => {
 bot.start(async (ctx) => {
   if (isPrivateChat(ctx.chat.type)) {
     await ctx.reply('Welcome! Use /help to explore commands.');
-    await greeting()(ctx); // Custom greeting
+    await greeting()(ctx); // Run greeting on /start
   }
 });
 
-// --- SINGLE TEXT HANDLER ---
+// --- MAIN TEXT HANDLER (runs both greeting and PDF logic) ---
 bot.on('text', async (ctx) => {
-  const text = ctx.message.text?.trim().toLowerCase() || '';
-
-  // Skip command-like or content-trigger messages first
-  if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
-
-  // Greeting triggers
-  const greetingRegex = /^(hi+|hello+|hey+|hola+|start|\/start)[!.\s]*$/i;
-  if (greetingRegex.test(text)) {
-    await greeting()(ctx);
-    return;
+  try {
+    await greeting()(ctx); // greeting checks if text matches and responds if needed
+    await pdf()(ctx);      // pdf checks if text matches code and responds if needed
+  } catch (err) {
+    console.error('Error in text handler:', err);
   }
-
-  // PDF or other general text command
-  await pdf()(ctx);
 });
 
-// --- NEW USER GREETING IN GROUP ---
+// --- NEW GROUP MEMBER WELCOME ---
 bot.on('new_chat_members', async (ctx) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
@@ -75,10 +67,9 @@ bot.on('new_chat_members', async (ctx) => {
   }
 });
 
-// --- UNIVERSAL MESSAGE HANDLER FOR PRIVATE CHAT TRACKING ---
+// --- TRACK USERS IN PRIVATE CHATS ---
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
-
   if (!chat?.id || !isPrivateChat(chat.type)) return;
 
   const alreadyNotified = await saveToSheet(chat);
@@ -87,6 +78,7 @@ bot.on('message', async (ctx) => {
   if (chat.id !== ADMIN_ID && !alreadyNotified) {
     const name = 'first_name' in chat ? chat.first_name : 'Unknown';
     const username = 'username' in chat ? `@${chat.username}` : 'N/A';
+
     await ctx.telegram.sendMessage(
       ADMIN_ID,
       `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
