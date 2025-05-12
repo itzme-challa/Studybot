@@ -17,27 +17,20 @@ const handlePdfCommand = async (ctx: Context, keyword: string) => {
 
   debug(`Handling PDF command for: ${keyword}`);
 
-  await ctx.reply('This file will disappear in 5 minutes. Save or forward it to keep it.');
+  await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
 
-  const sent = await ctx.telegram.copyMessage(
+  await ctx.telegram.copyMessage(
     ctx.chat!.id,
     fileStorageChatId,
     messageMap[keyword]
   );
-
-  // Schedule deletion after 5 minutes
-  setTimeout(() => {
-    ctx.telegram.deleteMessage(ctx.chat!.id, sent.message_id).catch((err) => {
-      console.warn('Failed to delete message:', err);
-    });
-  }, 5 * 60 * 1000); // 5 minutes
 };
 
 const pdf = () => async (ctx: Context) => {
   try {
     const message = ctx.message;
 
-    // Support deep-link like /start neetpyq1
+    // Handle /start with deep link
     if (message && 'text' in message && message.text.startsWith('/start')) {
       const parts = message.text.trim().split(' ');
       if (parts.length > 1) {
@@ -47,7 +40,7 @@ const pdf = () => async (ctx: Context) => {
       }
     }
 
-    // Support plain text like "neetpyq1"
+    // Handle plain text commands like "neetpyq1"
     if (message && 'text' in message) {
       const keyword = message.text.trim().toLowerCase();
       await handlePdfCommand(ctx, keyword);
