@@ -1,7 +1,7 @@
 import { Telegraf } from 'telegraf';
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { saveChatId, fetchChatIdsFromSheet } from './utils/chatStore';
 import { saveToSheet } from './utils/saveToSheet';
+import { fetchChatIdsFromSheet } from './utils/chatStore';
 import { about } from './commands/about';
 import { help } from './commands/help';
 import { pdf } from './commands/pdf';
@@ -21,9 +21,8 @@ const bot = new Telegraf(BOT_TOKEN);
 // --- COMMANDS ---
 bot.command('about', about());
 bot.command('help', help());
-bot.on('text', pdf());
-bot.on('text', greeting());
-// /users command
+
+// /users (admin-only)
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
@@ -41,24 +40,33 @@ bot.command('users', async (ctx) => {
   }
 });
 
-// --- GREETING HANDLING ---
+// --- START COMMAND ---
 bot.start(async (ctx) => {
   if (isPrivateChat(ctx.chat.type)) {
     await ctx.reply('Welcome! Use /help to explore commands.');
-    await greeting()(ctx); // Trigger greeting on /start
+    await greeting()(ctx); // Custom greeting
   }
 });
 
+// --- SINGLE TEXT HANDLER ---
 bot.on('text', async (ctx) => {
-  const messageText = ctx.message.text?.trim().toLowerCase();
+  const text = ctx.message.text?.trim().toLowerCase() || '';
 
-  // Trigger greeting when "hi", "hello", or similar messages are detected
-  if (['hi', 'hello', 'hey', 'hii', 'heyy', 'start', '/start'].includes(messageText)) {
-    await greeting()(ctx); // Trigger greeting on text messages like 'hi'
+  // Skip command-like or content-trigger messages first
+  if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
+
+  // Greeting triggers
+  const greetingRegex = /^(hi+|hello+|hey+|hola+|start|\/start)[!.\s]*$/i;
+  if (greetingRegex.test(text)) {
+    await greeting()(ctx);
+    return;
   }
+
+  // PDF or other general text command
+  await pdf()(ctx);
 });
 
-// New group added
+// --- NEW USER GREETING IN GROUP ---
 bot.on('new_chat_members', async (ctx) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
@@ -67,27 +75,23 @@ bot.on('new_chat_members', async (ctx) => {
   }
 });
 
-// --- MESSAGE HANDLER ---
+// --- UNIVERSAL MESSAGE HANDLER FOR PRIVATE CHAT TRACKING ---
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
-  const msg = ctx.message as { text?: string; reply_to_message?: { text?: string } };
 
-  if (!chat?.id) return;
+  if (!chat?.id || !isPrivateChat(chat.type)) return;
 
-  // Save chat ID only for private chats
-  if (isPrivateChat(chat.type)) {
-    const alreadyNotified = await saveToSheet(chat);
-    console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
+  const alreadyNotified = await saveToSheet(chat);
+  console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
 
-    if (chat.id !== ADMIN_ID && !alreadyNotified) {
-      const name = 'first_name' in chat ? chat.first_name : 'Unknown';
-      const username = 'username' in chat ? `@${chat.username}` : 'N/A';
-      await ctx.telegram.sendMessage(
-        ADMIN_ID,
-        `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
-        { parse_mode: 'Markdown' }
-      );
-    }
+  if (chat.id !== ADMIN_ID && !alreadyNotified) {
+    const name = 'first_name' in chat ? chat.first_name : 'Unknown';
+    const username = 'username' in chat ? `@${chat.username}` : 'N/A';
+    await ctx.telegram.sendMessage(
+      ADMIN_ID,
+      `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
+      { parse_mode: 'Markdown' }
+    );
   }
 });
 
