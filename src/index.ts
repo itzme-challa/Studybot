@@ -40,15 +40,13 @@ bot.command('users', async (ctx) => {
   }
 });
 
-// --- /START HANDLER ---
 bot.start(async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
   const user = ctx.from;
   const chat = ctx.chat;
 
-  // Send welcome message
-  await ctx.reply('Welcome! Use /help to explore commands.');
+  // Removed: await ctx.reply('Welcome! Use /help to explore commands.');
 
   // Trigger greeting
   await greeting()(ctx);
