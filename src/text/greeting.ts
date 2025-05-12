@@ -23,11 +23,14 @@ const greeting = () => async (ctx: Context) => {
       if (['left', 'kicked'].includes(member.status)) {
         await ctx.telegram.sendMessage(
           user.id,
-          `Dear ${user.first_name}, please join our official channel to use this bot:\n\n👉 [Join @NEETUG_26](https://t.me/NEETUG_26)`,
+          `*Hey ${user.first_name}!* \n\nPlease join *all our update channels* to continue using this bot.`,
           {
             parse_mode: 'Markdown',
-            disable_web_page_preview: true,
-          } as any // Safely bypassing the TypeScript type error
+            ...Markup.inlineKeyboard([
+              [Markup.button.url('✅ Join @NEETUG_26', 'https://t.me/NEETUG_26')],
+              [Markup.button.callback('🔄 Verify Again', 'verify_join')],
+            ]),
+          }
         );
         return;
       }
@@ -37,7 +40,7 @@ const greeting = () => async (ctx: Context) => {
       return;
     }
 
-    // Skip messages like /p1 or br or similar
+    // Skip messages like /p1, br, etc.
     if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
 
     const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
