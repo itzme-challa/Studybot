@@ -10,7 +10,7 @@ const messageMap: Record<string, number> = {
   // add more as needed
 };
 
-const fileStorageChatId = -1002589507108; // Converted from /c/2131991973 to full chat ID
+const fileStorageChatId = -1002589507108; // Channel ID where files are stored
 
 const pdf = () => async (ctx: Context) => {
   try {
@@ -20,12 +20,12 @@ const pdf = () => async (ctx: Context) => {
     const text = message.text.trim().toLowerCase();
 
     if (messageMap[text]) {
-      debug(`Forwarding stored message for command: ${text}`);
+      debug(`Copying stored message for command: ${text}`);
       await ctx.telegram.copyMessage(
-  ctx.chat!.id,
-  fileStorageChatId,
-  messageMap[text]
-);
+        ctx.chat!.id,
+        fileStorageChatId,
+        messageMap[text]
+      );
     }
   } catch (err) {
     console.error('PDF command handler error:', err);
