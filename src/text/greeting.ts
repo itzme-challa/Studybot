@@ -1,6 +1,5 @@
-import { Context, Telegraf } from 'telegraf';
+import { Context } from 'telegraf';
 import createDebug from 'debug';
-import { SendMessageOptions } from 'telegraf/typings/core/types/typegram';
 
 const debug = createDebug('bot:greeting_text');
 
@@ -23,10 +22,10 @@ const greeting = () => async (ctx: Context) => {
       const member = await ctx.telegram.getChatMember(channelId, user.id);
 
       if (['left', 'kicked'].includes(member.status)) {
-        const options: SendMessageOptions = {
+        const options = {
           parse_mode: 'Markdown',
           disable_web_page_preview: true,
-        };
+        } as const;
 
         await ctx.reply(
           `Hey ${user.first_name},\n\nPlease *join all my update channels to use me*:\n\n👉 [Join Channel ${channelId}](https://t.me/${channelId.replace('@', '')})\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
