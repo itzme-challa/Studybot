@@ -23,10 +23,13 @@ const greeting = () => async (ctx: Context) => {
       const member = await ctx.telegram.getChatMember(channelId, user.id);
 
       if (['left', 'kicked'].includes(member.status)) {
-        await ctx.replyWithMarkdown(
-          `Hey ${user.first_name},\n\nPlease *join all my update channels to use me*:\n\n👉 [Join Channel ${channelId}](https://t.me/${channelId.replace('@', '')})\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
-          { disable_web_page_preview: true }
-        );
+        await ctx.reply(
+  `Hey ${user.first_name},\n\nPlease *join all my update channels to use me*:\n\n👉 [Join Channel ${channelId}](https://t.me/${channelId.replace('@', '')})\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
+  {
+    parse_mode: 'Markdown',
+    disable_web_page_preview: true,
+  }
+);
         return;
       }
     } catch (err) {
