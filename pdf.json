@@ -1,15 +1,19 @@
 [
   {
-    "title": "MTG Rapid Physics",
-    "link": "https://t.me/Material_eduhubkmrbot?start=mtg-rapid-physics"
+    "title": "MTG Rapid Series",
+    "items": [
+      { "label": "MTG Rapid Physics", "key": "mtg-rapid-physics" },
+      { "label": "MTG Rapid Chemistry", "key": "mtg-rapid-chemistry" },
+      { "label": "MTG Rapid Biology", "key": "mtg-rapid-biology" }
+    ]
   },
   {
-    "title": "MTG Rapid Chemistry",
-    "link": "https://t.me/Material_eduhubkmrbot?start=mtg-rapid-chemistry"
+    "title": "PW 37 Years PYQs",
+    "items": [
+      { "label": "PW 37 Years Physics PYQs", "key": "pw-37years-pyqs-physics" },
+      { "label": "PW 37 Years Chemistry PYQs", "key": "pw-37years-pyqs-chemistry" },
+      { "label": "PW 37 Years Biology PYQs", "key": "pw-37years-pyqs-biology" }
+    ]
   },
-  {
-    "title": "MTG Rapid Biology",
-    "link": "https://t.me/Material_eduhubkmrbot?start=mtg-rapid-biology"
-  }
-  // Add rest of the resources here
+  ...
 ]
