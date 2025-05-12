@@ -15,26 +15,36 @@ const greeting = () => async (ctx: Context) => {
     const user = ctx.from;
     if (!user) return;
 
-    const channelId = '@NEETUG_26';
-    const groupLink = '@neetpw01';
+    const channels = [
+      { id: '@NEETUG_26', name: 'Channel @NEETUG_26', link: 'https://t.me/NEETUG_26' },
+      { id: '@neetpw01', name: 'Group @neetpw01', link: 'https://t.me/neetpw01' },
+    ];
 
-    // Check if user has joined the required channel
-    try {
-      const member = await ctx.telegram.getChatMember(channelId, user.id);
-      if (['left', 'kicked'].includes(member.status)) {
-        await ctx.telegram.sendMessage(
-          user.id,
-          `Hey ${user.first_name},\n\nPlease **join all my update channels to use me**!\n\n👉 [Join Channel @NEETUG_26](https://t.me/NEETUG_26)\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
-          {
-            parse_mode: 'Markdown',
-            disable_web_page_preview: true,
-          } as any
-        );
+    let notJoined = [];
+
+    for (const channel of channels) {
+      try {
+        const member = await ctx.telegram.getChatMember(channel.id, user.id);
+        if (['left', 'kicked'].includes(member.status)) {
+          notJoined.push(channel);
+        }
+      } catch (err) {
+        console.error(`Error checking membership for ${channel.id}:`, err);
+        await ctx.reply('Unable to verify your channel membership. Please try again later.');
         return;
       }
-    } catch (err) {
-      console.error('Error checking channel membership:', err);
-      await ctx.reply('Unable to verify your channel membership. Please try again later.');
+    }
+
+    if (notJoined.length > 0) {
+      const links = notJoined.map(c => `👉 [${c.name}](${c.link})`).join('\n');
+      await ctx.telegram.sendMessage(
+        user.id,
+        `**Hello ${user.first_name},**\n\nTo use this bot, please join the required updates:\n\n${links}`,
+        {
+          parse_mode: 'Markdown',
+          disable_web_page_preview: true,
+        } as any
+      );
       return;
     }
 
