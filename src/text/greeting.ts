@@ -18,17 +18,14 @@ const greeting = () => async (ctx: Context) => {
     const channelId = '@NEETUG_26';
     const groupLink = '@neetpw01';
 
-    // Check if user has joined the required channel
+    // Check if user is a member of the required channel
     try {
       const member = await ctx.telegram.getChatMember(channelId, user.id);
+
       if (['left', 'kicked'].includes(member.status)) {
-        await ctx.telegram.sendMessage(
-          user.id,
-          `Hey ${user.first_name},\n\nPlease **join all my update channels to use me**!\n\n👉 [Join Channel @NEETUG_26](https://t.me/NEETUG_26)\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
-          {
-            parse_mode: 'Markdown',
-            disable_web_page_preview: true,
-          } as any
+        await ctx.replyWithMarkdown(
+          `Hey ${user.first_name},\n\nPlease *join all my update channels to use me*:\n\n👉 [Join Channel ${channelId}](https://t.me/${channelId.replace('@', '')})\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
+          { disable_web_page_preview: true }
         );
         return;
       }
@@ -38,17 +35,17 @@ const greeting = () => async (ctx: Context) => {
       return;
     }
 
-    // Skip command-like messages
+    // Skip if message is a known command-like pattern
     if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
 
     const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
-
     if (greetings.includes(text)) {
       await ctx.reply(`Hey ${user.first_name}! How can I assist you today?`);
     }
 
   } catch (err) {
     console.error('Greeting handler error:', err);
+    await ctx.reply('Oops! Something went wrong. Please try again later.');
   }
 };
 
