@@ -22,7 +22,7 @@ const bot = new Telegraf(BOT_TOKEN);
 bot.command('about', about());
 bot.command('help', help());
 bot.on('text', pdf());
-
+bot.on('text', greeting());
 // /users command
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
