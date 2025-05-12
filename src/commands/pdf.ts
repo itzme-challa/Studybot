@@ -5,12 +5,12 @@ const debug = createDebug('bot:pdf_handler');
 
 // Map command keywords to message IDs
 const messageMap: Record<string, number> = {
-  neetpyq1: 222,
-  jeepyq2: 223,
+  neetpyq1: 2,
+  jeepyq2: 3,
   // add more as needed
 };
 
-const fileStorageChatId = -1002131991973; // Converted from /c/2131991973 to full chat ID
+const fileStorageChatId = -2589507108; // Converted from /c/2131991973 to full chat ID
 
 const pdf = () => async (ctx: Context) => {
   try {
