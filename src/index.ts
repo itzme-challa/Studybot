@@ -4,6 +4,7 @@ import { saveChatId, fetchChatIdsFromSheet } from './utils/chatStore';
 import { saveToSheet } from './utils/saveToSheet';
 import { about } from './commands/about';
 import { help } from './commands/help';
+import { pdf } from './commands/pdf';
 import { greeting } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
@@ -18,7 +19,7 @@ const bot = new Telegraf(BOT_TOKEN);
 // --- COMMANDS ---
 bot.command('about', about());
 bot.command('help', help());
-
+bot.on('text', pdf());
 // /users command to show total chat IDs from Google Sheet
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) {
