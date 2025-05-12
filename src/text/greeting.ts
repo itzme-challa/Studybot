@@ -16,6 +16,7 @@ const greeting = () => async (ctx: Context) => {
     if (!user) return;
 
     const channelId = '@NEETUG_26';
+    const groupLink = '@neetpq01';
 
     // Check if user has joined the required channel
     try {
@@ -23,11 +24,11 @@ const greeting = () => async (ctx: Context) => {
       if (['left', 'kicked'].includes(member.status)) {
         await ctx.telegram.sendMessage(
           user.id,
-          `Dear ${user.first_name}, please join our official channel to use this bot:\n\n👉 [Join @NEETUG_26](https://t.me/NEETUG_26)`,
+          `Hey ${user.first_name},\n\nPlease **join all my update channels to use me**!\n\n👉 [Join Channel @NEETUG_26](https://t.me/NEETUG_26)\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
           {
             parse_mode: 'Markdown',
             disable_web_page_preview: true,
-          } as any // Safely bypassing the TypeScript type error
+          } as any
         );
         return;
       }
@@ -37,13 +38,13 @@ const greeting = () => async (ctx: Context) => {
       return;
     }
 
-    // Skip messages like /p1 or br or similar
+    // Skip command-like messages
     if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
 
     const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
 
     if (greetings.includes(text)) {
-      await ctx.reply(`Welcome ${user.first_name}! How can I assist you today?`);
+      await ctx.reply(`Hey ${user.first_name}! How can I assist you today?`);
     }
 
   } catch (err) {
