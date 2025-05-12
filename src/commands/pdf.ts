@@ -10,7 +10,7 @@ const messageMap: Record<string, number> = {
   // add more as needed
 };
 
-const fileStorageChatId = -2589507108; // Converted from /c/2131991973 to full chat ID
+const fileStorageChatId = -1002589507108; // Converted from /c/2131991973 to full chat ID
 
 const pdf = () => async (ctx: Context) => {
   try {
