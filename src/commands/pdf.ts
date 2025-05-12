@@ -21,11 +21,11 @@ const pdf = () => async (ctx: Context) => {
 
     if (messageMap[text]) {
       debug(`Forwarding stored message for command: ${text}`);
-      await ctx.telegram.forwardMessage(
-        ctx.chat!.id,
-        fileStorageChatId,
-        messageMap[text]
-      );
+      await ctx.telegram.copyMessage(
+  ctx.chat!.id,
+  fileStorageChatId,
+  messageMap[text]
+);
     }
   } catch (err) {
     console.error('PDF command handler error:', err);
