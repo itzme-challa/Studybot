@@ -20,10 +20,11 @@ const greeting = () => async (ctx: Context) => {
     try {
       const member = await ctx.telegram.getChatMember(channelId, user.id);
       if (['left', 'kicked'].includes(member.status)) {
-        await ctx.reply(
-          `Dear ${user.first_name}, please join our official channel to use this bot:\n\n👉 [Join @NEETUG_26](https://t.me/NEETUG_26)`,
-          { parse_mode: 'Markdown', disable_web_page_preview: true }
-        );
+        await ctx.telegram.sendMessage(user.id, 
+          `Dear ${user.first_name}, please join our official channel to use this bot:\n\n👉 [Join @NEETUG_26](https://t.me/NEETUG_26)`, {
+          parse_mode: 'Markdown',
+          disable_web_page_preview: true as any // workaround to bypass type error
+        });
         return;
       }
     } catch (err) {
