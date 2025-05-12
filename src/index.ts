@@ -130,6 +130,13 @@ bot.start(async (ctx) => {
     await greeting()(ctx);
   }
 });
+bot.action('verify_join', async (ctx) => {
+  // Re-run greeting logic manually
+  ctx.session ??= {};
+  ctx.session.forceGreet = true;
+  await greeting()(ctx as Context);
+  await ctx.answerCbQuery();
+});
 
 // --- MESSAGE HANDLER ---
 bot.on('message', async (ctx) => {
