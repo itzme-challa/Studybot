@@ -1,6 +1,5 @@
 import { Context } from 'telegraf';
 import createDebug from 'debug';
-import { Markup } from 'telegraf';
 
 const debug = createDebug('bot:greeting_text');
 
@@ -24,7 +23,7 @@ const greeting = () => async (ctx: Context) => {
       if (['left', 'kicked'].includes(member.status)) {
         await ctx.telegram.sendMessage(
           user.id,
-          `Hey ${user.first_name},\n\nPlease **join all my update channels to use me**!\n\n👉 [Join Channel @NEETUG_26](https://t.me/NEETUG_26)\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
+          `Hello ${user.first_name},\n\nTo use this bot, please join all the required channels first:\n\n👉 [Join @NEETUG_26](https://t.me/NEETUG_26)\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})\n\nThen send /start again.`,
           {
             parse_mode: 'Markdown',
             disable_web_page_preview: true,
@@ -34,17 +33,19 @@ const greeting = () => async (ctx: Context) => {
       }
     } catch (err) {
       console.error('Error checking channel membership:', err);
-      await ctx.reply('Unable to verify your channel membership. Please try again later.');
+      await ctx.reply('Unable to verify your membership. Please try again later.');
       return;
     }
 
-    // Skip command-like messages
-    if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
-
+    // If the user has access, respond with welcome message on /start or greetings
     const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
-
     if (greetings.includes(text)) {
-      await ctx.reply(`Hey ${user.first_name}! How can I assist you today?`);
+      await ctx.reply(
+        `Welcome ${user.first_name}! You have full access.\n\nUse /help to explore available commands and get started with your NEET Preparation!`,
+        {
+          parse_mode: 'Markdown',
+        }
+      );
     }
 
   } catch (err) {
