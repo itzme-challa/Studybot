@@ -15,43 +15,29 @@ const greeting = () => async (ctx: Context) => {
     const user = ctx.from;
     if (!user) return;
 
-    const requiredChats = [
-      { id: '@NEETUG_26', label: 'Join @NEETUG_26', url: 'https://t.me/NEETUG_26' },
-      { id: '@neetpw01', label: 'Join @neetpw01', url: 'https://t.me/neetpw01' },
-    ];
+    const channelId = '@NEETUG_26';
 
-    // Check if user is a member of all required chats
-    const notJoined = [];
-    for (const chat of requiredChats) {
-      try {
-        const member = await ctx.telegram.getChatMember(chat.id, user.id);
-        if (['left', 'kicked'].includes(member.status)) {
-          notJoined.push(chat);
-        }
-      } catch (err) {
-        console.error(`Error checking ${chat.id} membership:`, err);
-        await ctx.reply('Unable to verify your group/channel membership. Please try again later.');
+    // Check if user has joined the required channel
+    try {
+      const member = await ctx.telegram.getChatMember(channelId, user.id);
+      if (['left', 'kicked'].includes(member.status)) {
+        await ctx.telegram.sendMessage(
+          user.id,
+          `Dear ${user.first_name}, please join our official channel to use this bot:\n\n👉 [Join @NEETUG_26](https://t.me/NEETUG_26)`,
+          {
+            parse_mode: 'Markdown',
+            disable_web_page_preview: true,
+          } as any // Safely bypassing the TypeScript type error
+        );
         return;
       }
-    }
-
-    // If not joined all, ask to join and retry
-    if (notJoined.length > 0) {
-      await ctx.telegram.sendMessage(
-        user.id,
-        `*Hey ${user.first_name}!* \n\nPlease join *all required channels/groups* to use this bot:`,
-        {
-          parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([
-            ...notJoined.map(chat => [Markup.button.url(`✅ ${chat.label}`, chat.url)]),
-            [Markup.button.callback('🔄 Verify Again', 'verify_join')],
-          ]),
-        }
-      );
+    } catch (err) {
+      console.error('Error checking channel membership:', err);
+      await ctx.reply('Unable to verify your channel membership. Please try again later.');
       return;
     }
 
-    // Skip messages like /p1, br, etc.
+    // Skip messages like /p1 or br or similar
     if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
 
     const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
