@@ -8,6 +8,7 @@ import { pdf } from './commands/pdf';
 import { greeting } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
+import { isMemberOfBoth } from './utils/checkMembership'; // <-- Import added
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -53,10 +54,10 @@ bot.start(async (ctx) => {
   // Trigger greeting
   await greeting()(ctx);
 
-  // Trigger PDF (in case user typed "/start")
+  // Trigger PDF handler (in case /start <keyword> used)
   await pdf()(ctx);
 
-  // Save user if not already saved
+  // Save user
   const alreadyNotified = await saveToSheet(chat);
   console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
 
@@ -71,7 +72,7 @@ bot.start(async (ctx) => {
   }
 });
 
-// --- UNIVERSAL TEXT HANDLER (greeting + pdf) ---
+// --- UNIVERSAL TEXT HANDLER ---
 bot.on('text', async (ctx) => {
   try {
     await greeting()(ctx);
