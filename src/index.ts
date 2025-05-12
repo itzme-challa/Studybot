@@ -1,10 +1,10 @@
 import { Telegraf } from 'telegraf';
 import { VercelRequest, VercelResponse } from '@vercel/node';
+
 import { saveToSheet } from './utils/saveToSheet';
 import { fetchChatIdsFromSheet } from './utils/chatStore';
 import { about } from './commands/about';
-import { help } from './commands/help';
-import { pdf } from './commands/pdf';
+import { pdf, pdfPagination } from './commands/pdf';
 import { greeting } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
@@ -20,10 +20,10 @@ const bot = new Telegraf(BOT_TOKEN);
 
 // --- COMMANDS ---
 bot.command('about', about());
-bot.command('help', help());
-bot.action(/help_page_\d+/, helpPagination);
+bot.command('pdf', pdf());
+bot.action(/pdf_page_\d+/, pdfPagination);
 
-// /users (admin only)
+// --- ADMIN: /users command ---
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
@@ -41,27 +41,25 @@ bot.command('users', async (ctx) => {
   }
 });
 
+// --- START COMMAND ---
 bot.start(async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
   const user = ctx.from;
   const chat = ctx.chat;
 
-  // Removed: await ctx.reply('Welcome! Use /help to explore commands.');
-
-  // Trigger greeting
+  // Trigger greeting and PDF list
   await greeting()(ctx);
-
-  // Trigger PDF (in case user typed "/start")
   await pdf()(ctx);
 
-  // Save user if not already saved
+  // Save user chat ID
   const alreadyNotified = await saveToSheet(chat);
   console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
 
   if (chat.id !== ADMIN_ID && !alreadyNotified) {
     const name = user?.first_name || 'Unknown';
     const username = user?.username ? `@${user.username}` : 'N/A';
+
     await ctx.telegram.sendMessage(
       ADMIN_ID,
       `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
@@ -70,29 +68,22 @@ bot.start(async (ctx) => {
   }
 });
 
-// --- UNIVERSAL TEXT HANDLER (greeting + pdf) ---
-bot.on('text', async (ctx) => {
-  try {
-    await greeting()(ctx);
-    await pdf()(ctx);
-  } catch (err) {
-    console.error('Error handling text:', err);
-  }
-});
-
-// --- NEW USER WELCOME IN GROUP ---
+// --- NEW CHAT MEMBERS (Groups) ---
 bot.on('new_chat_members', async (ctx) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
-      await ctx.reply(`Thanks for adding me! Type /help to get started.`);
+      await ctx.reply(`Thanks for adding me! Type /pdf to access the checklist.`);
     }
   }
 });
 
-// --- PRIVATE CHAT USER SAVING (fallback) ---
+// --- ALL PRIVATE MESSAGES: Greet + Save ---
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
   if (!chat?.id || !isPrivateChat(chat.type)) return;
+
+  await greeting()(ctx);
+  await pdf()(ctx);
 
   const alreadyNotified = await saveToSheet(chat);
   console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
@@ -101,6 +92,7 @@ bot.on('message', async (ctx) => {
     const user = ctx.from;
     const name = user?.first_name || 'Unknown';
     const username = user?.username ? `@${user.username}` : 'N/A';
+
     await ctx.telegram.sendMessage(
       ADMIN_ID,
       `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
@@ -109,11 +101,12 @@ bot.on('message', async (ctx) => {
   }
 });
 
-// --- DEPLOYMENT HANDLER ---
+// --- DEPLOYMENT HANDLER FOR VERCEL ---
 export const startVercel = async (req: VercelRequest, res: VercelResponse) => {
   await production(req, res, bot);
 };
 
+// --- LOCAL DEV ---
 if (ENVIRONMENT !== 'production') {
   development(bot);
 }
