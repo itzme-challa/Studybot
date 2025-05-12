@@ -41,78 +41,20 @@ bot.command('users', async (ctx) => {
   }
 });
 
-// /broadcast
-bot.command('broadcast', async (ctx) => {
-  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-
-  const msg = ctx.message.text?.split(' ').slice(1).join(' ');
-  if (!msg) return ctx.reply('Usage:\n/broadcast Your message here');
-
-  try {
-    const chatIds = await fetchChatIdsFromSheet();
-    if (!chatIds.length) return ctx.reply('No users to broadcast to.');
-
-    let success = 0;
-    for (const id of chatIds) {
-      try {
-        await ctx.telegram.sendMessage(id, msg);
-        success++;
-      } catch (err) {
-        console.log(`Failed to send to ${id}`, err);
-      }
-    }
-    await ctx.reply(`✅ Broadcast sent to ${success} users.`);
-  } catch (err) {
-    console.error('Broadcast error:', err);
-    await ctx.reply('❌ Error broadcasting.');
-  }
-});
-
-// /reply
-bot.command('reply', async (ctx) => {
-  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-
-  const [_, chatIdStr, ...msgParts] = ctx.message.text?.split(' ') ?? [];
-  const chatId = Number(chatIdStr);
-  const message = msgParts.join(' ');
-
-  if (isNaN(chatId) || !message) {
-    return ctx.reply('Usage:\n/reply <chat_id> <message>');
-  }
-
-  try {
-    await ctx.telegram.sendMessage(chatId, `*Admin's Reply:*\n${message}`, { parse_mode: 'Markdown' });
-    await ctx.reply(`Reply sent to ${chatId}`);
-  } catch (err) {
-    console.error('Reply error:', err);
-    await ctx.reply(`Failed to send reply to ${chatId}`);
-  }
-});
-
-// Refresh button
-bot.action('refresh_users', async (ctx) => {
-  if (ctx.from?.id !== ADMIN_ID) return ctx.answerCbQuery('Unauthorized');
-
-  try {
-    const chatIds = await fetchChatIdsFromSheet();
-    await ctx.editMessageText(`📊 Total users: ${chatIds.length} (refreshed)`, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
-      },
-    });
-    await ctx.answerCbQuery('Refreshed!');
-  } catch (err) {
-    console.error('Refresh error:', err);
-    await ctx.answerCbQuery('Refresh failed');
-  }
-});
-
-// /start for private chat
+// --- GREETING HANDLING ---
 bot.start(async (ctx) => {
   if (isPrivateChat(ctx.chat.type)) {
     await ctx.reply('Welcome! Use /help to explore commands.');
-    await greeting()(ctx);
+    await greeting()(ctx); // Trigger greeting on /start
+  }
+});
+
+bot.on('text', async (ctx) => {
+  const messageText = ctx.message.text?.trim().toLowerCase();
+
+  // Trigger greeting when "hi", "hello", or similar messages are detected
+  if (['hi', 'hello', 'hey', 'hii', 'heyy', 'start', '/start'].includes(messageText)) {
+    await greeting()(ctx); // Trigger greeting on text messages like 'hi'
   }
 });
 
@@ -146,41 +88,6 @@ bot.on('message', async (ctx) => {
         { parse_mode: 'Markdown' }
       );
     }
-  }
-
-  // Handle /contact
-  if (msg.text?.startsWith('/contact')) {
-    const userMsg = msg.text.replace('/contact', '').trim() || msg.reply_to_message?.text;
-    if (userMsg) {
-      await ctx.telegram.sendMessage(
-        ADMIN_ID,
-        `*Contact Message*\nFrom: ${chat.first_name} (@${chat.username || 'N/A'})\nChat ID: ${chat.id}\n\n${userMsg}`,
-        { parse_mode: 'Markdown' }
-      );
-      await ctx.reply('Your message has been sent to the admin!');
-    } else {
-      await ctx.reply('Please provide a message or reply using /contact.');
-    }
-    return;
-  }
-
-  // Admin swipe reply
-  if (chat.id === ADMIN_ID && msg.reply_to_message?.text) {
-    const match = msg.reply_to_message.text.match(/Chat ID: (\d+)/);
-    if (match) {
-      const targetId = parseInt(match[1], 10);
-      try {
-        await ctx.telegram.sendMessage(targetId, `*Admin's Reply:*\n${msg.text}`, { parse_mode: 'Markdown' });
-      } catch (err) {
-        console.error('Swipe reply error:', err);
-      }
-    }
-    return;
-  }
-
-  // Private greeting fallback
-  if (isPrivateChat(chat.type)) {
-    await greeting()(ctx);
   }
 });
 
