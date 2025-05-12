@@ -12,32 +12,45 @@ const messageMap: Record<string, number> = {
 
 const fileStorageChatId = -1002589507108;
 
+const handlePdfCommand = async (ctx: Context, keyword: string) => {
+  if (!messageMap[keyword]) return;
+
+  debug(`Handling PDF command for: ${keyword}`);
+
+  await ctx.reply('This file will disappear in 5 minutes. Save or forward it to keep it.');
+
+  const sent = await ctx.telegram.copyMessage(
+    ctx.chat!.id,
+    fileStorageChatId,
+    messageMap[keyword]
+  );
+
+  // Schedule deletion after 5 minutes
+  setTimeout(() => {
+    ctx.telegram.deleteMessage(ctx.chat!.id, sent.message_id).catch((err) => {
+      console.warn('Failed to delete message:', err);
+    });
+  }, 5 * 60 * 1000); // 5 minutes
+};
+
 const pdf = () => async (ctx: Context) => {
   try {
     const message = ctx.message;
-    if (!message || !('text' in message)) return;
 
-    const text = message.text.trim().toLowerCase();
+    // Support deep-link like /start neetpyq1
+    if (message && 'text' in message && message.text.startsWith('/start')) {
+      const parts = message.text.trim().split(' ');
+      if (parts.length > 1) {
+        const keyword = parts[1].toLowerCase();
+        await handlePdfCommand(ctx, keyword);
+        return;
+      }
+    }
 
-    if (messageMap[text]) {
-      debug(`Copying stored message for command: ${text}`);
-
-      // Inform user about auto-delete
-      await ctx.reply('This file will disappear in 5 minutes. Save or forward it to keep it.');
-
-      // Send the file without forwarding label
-      const sent = await ctx.telegram.copyMessage(
-        ctx.chat!.id,
-        fileStorageChatId,
-        messageMap[text]
-      );
-
-      // Delete after 5 minutes
-      setTimeout(() => {
-        ctx.telegram.deleteMessage(ctx.chat!.id, sent.message_id).catch((err) => {
-          console.warn('Failed to delete message:', err);
-        });
-      }, 5 * 60 * 1000); // 5 minutes
+    // Support plain text like "neetpyq1"
+    if (message && 'text' in message) {
+      const keyword = message.text.trim().toLowerCase();
+      await handlePdfCommand(ctx, keyword);
     }
   } catch (err) {
     console.error('PDF command handler error:', err);
