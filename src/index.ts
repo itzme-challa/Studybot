@@ -21,6 +21,7 @@ const bot = new Telegraf(BOT_TOKEN);
 // --- COMMANDS ---
 bot.command('about', about());
 bot.command('help', help());
+bot.action(/help_page_\d+/, helpPagination);
 
 // /users (admin only)
 bot.command('users', async (ctx) => {
