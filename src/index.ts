@@ -3,7 +3,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { saveToSheet } from './utils/saveToSheet';
 import { fetchChatIdsFromSheet } from './utils/chatStore';
 import { about } from './commands/about';
-import { help } from './commands/help';
+import { help, handleHelpPagination } from './commands/help';
 import { pdf } from './commands/pdf';
 import { greeting } from './text/greeting';
 import { production, development } from './core';
@@ -21,6 +21,7 @@ const bot = new Telegraf(BOT_TOKEN);
 // --- COMMANDS ---
 bot.command('about', about());
 bot.command('help', help());
+bot.on('callback_query', handleHelpPagination());
 
 // /users (admin only)
 bot.command('users', async (ctx) => {
