@@ -1,6 +1,6 @@
-import { Context } from 'telegraf';
+import { Context, Telegraf } from 'telegraf';
 import createDebug from 'debug';
-import { Markup } from 'telegraf';
+import { SendMessageOptions } from 'telegraf/typings/core/types/typegram';
 
 const debug = createDebug('bot:greeting_text');
 
@@ -23,13 +23,15 @@ const greeting = () => async (ctx: Context) => {
       const member = await ctx.telegram.getChatMember(channelId, user.id);
 
       if (['left', 'kicked'].includes(member.status)) {
+        const options: SendMessageOptions = {
+          parse_mode: 'Markdown',
+          disable_web_page_preview: true,
+        };
+
         await ctx.reply(
-  `Hey ${user.first_name},\n\nPlease *join all my update channels to use me*:\n\n👉 [Join Channel ${channelId}](https://t.me/${channelId.replace('@', '')})\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
-  {
-    parse_mode: 'Markdown',
-    disable_web_page_preview: true,
-  }
-);
+          `Hey ${user.first_name},\n\nPlease *join all my update channels to use me*:\n\n👉 [Join Channel ${channelId}](https://t.me/${channelId.replace('@', '')})\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
+          options
+        );
         return;
       }
     } catch (err) {
@@ -38,7 +40,7 @@ const greeting = () => async (ctx: Context) => {
       return;
     }
 
-    // Skip if message is a known command-like pattern
+    // Skip command-like messages
     if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
 
     const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
