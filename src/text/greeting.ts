@@ -3,19 +3,46 @@ import createDebug from 'debug';
 
 const debug = createDebug('bot:greeting_text');
 
-const replyToMessage = (ctx: Context, messageId: number, string: string) =>
-  ctx.reply(string, {
-    reply_parameters: { message_id: messageId },
-  });
-
 const greeting = () => async (ctx: Context) => {
-  debug('Triggered "greeting" text command');
+  try {
+    debug('Triggered "greeting" text command');
 
-  const messageId = ctx.message?.message_id;
-  const userName = `${ctx.message?.from.first_name} ${ctx.message?.from.last_name}`;
+    const message = ctx.message;
+    if (!message || !('text' in message)) return;
 
-  if (messageId) {
-    await replyToMessage(ctx, messageId, `Hello, ${userName}!`);
+    const text = message.text.trim().toLowerCase();
+    const user = ctx.from;
+    if (!user) return;
+
+    const channelId = '@NEETUG_26';
+
+    // Check if user has joined the required channel
+    try {
+      const member = await ctx.telegram.getChatMember(channelId, user.id);
+      if (['left', 'kicked'].includes(member.status)) {
+        await ctx.reply(
+          `Dear ${user.first_name}, please join our official channel to use this bot:\n\n👉 [Join @NEETUG_26](https://t.me/NEETUG_26)`,
+          { parse_mode: 'Markdown', disable_web_page_preview: true }
+        );
+        return;
+      }
+    } catch (err) {
+      console.error('Error checking channel membership:', err);
+      await ctx.reply('Unable to verify your channel membership. Please try again later.');
+      return;
+    }
+
+    // Skip messages like /p1 or br or similar
+    if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
+
+    const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
+
+    if (greetings.includes(text)) {
+      await ctx.reply(`Welcome ${user.first_name}! How can I assist you today?`);
+    }
+
+  } catch (err) {
+    console.error('Greeting handler error:', err);
   }
 };
 
