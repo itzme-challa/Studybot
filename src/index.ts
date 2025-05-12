@@ -22,7 +22,7 @@ const bot = new Telegraf(BOT_TOKEN);
 bot.command('about', about());
 bot.command('help', help());
 
-// Admin-only command: /users
+// /users (admin only)
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
@@ -40,25 +40,48 @@ bot.command('users', async (ctx) => {
   }
 });
 
-// --- START COMMAND ---
+// --- /START HANDLER ---
 bot.start(async (ctx) => {
-  if (isPrivateChat(ctx.chat.type)) {
-    await ctx.reply('Welcome! Use /help to explore commands.');
-    await greeting()(ctx); // Run greeting on /start
+  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
+
+  const user = ctx.from;
+  const chat = ctx.chat;
+
+  // Send welcome message
+  await ctx.reply('Welcome! Use /help to explore commands.');
+
+  // Trigger greeting
+  await greeting()(ctx);
+
+  // Trigger PDF (in case user typed "/start")
+  await pdf()(ctx);
+
+  // Save user if not already saved
+  const alreadyNotified = await saveToSheet(chat);
+  console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
+
+  if (chat.id !== ADMIN_ID && !alreadyNotified) {
+    const name = user?.first_name || 'Unknown';
+    const username = user?.username ? `@${user.username}` : 'N/A';
+    await ctx.telegram.sendMessage(
+      ADMIN_ID,
+      `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
+      { parse_mode: 'Markdown' }
+    );
   }
 });
 
-// --- MAIN TEXT HANDLER (runs both greeting and PDF logic) ---
+// --- UNIVERSAL TEXT HANDLER (greeting + pdf) ---
 bot.on('text', async (ctx) => {
   try {
-    await greeting()(ctx); // greeting checks if text matches and responds if needed
-    await pdf()(ctx);      // pdf checks if text matches code and responds if needed
+    await greeting()(ctx);
+    await pdf()(ctx);
   } catch (err) {
-    console.error('Error in text handler:', err);
+    console.error('Error handling text:', err);
   }
 });
 
-// --- NEW GROUP MEMBER WELCOME ---
+// --- NEW USER WELCOME IN GROUP ---
 bot.on('new_chat_members', async (ctx) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
@@ -67,7 +90,7 @@ bot.on('new_chat_members', async (ctx) => {
   }
 });
 
-// --- TRACK USERS IN PRIVATE CHATS ---
+// --- PRIVATE CHAT USER SAVING (fallback) ---
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
   if (!chat?.id || !isPrivateChat(chat.type)) return;
@@ -76,12 +99,12 @@ bot.on('message', async (ctx) => {
   console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
 
   if (chat.id !== ADMIN_ID && !alreadyNotified) {
-    const name = 'first_name' in chat ? chat.first_name : 'Unknown';
-    const username = 'username' in chat ? `@${chat.username}` : 'N/A';
-
+    const user = ctx.from;
+    const name = user?.first_name || 'Unknown';
+    const username = user?.username ? `@${user.username}` : 'N/A';
     await ctx.telegram.sendMessage(
       ADMIN_ID,
-      `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
+      `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
       { parse_mode: 'Markdown' }
     );
   }
