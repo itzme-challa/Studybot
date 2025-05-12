@@ -1,6 +1,6 @@
 import { Context } from 'telegraf';
 import createDebug from 'debug';
-import { isMemberOfBoth } from '../utils/checkMembership';
+import { Markup } from 'telegraf';
 
 const debug = createDebug('bot:greeting_text');
 
@@ -15,23 +15,30 @@ const greeting = () => async (ctx: Context) => {
     const user = ctx.from;
     if (!user) return;
 
+    const channelId = '@NEETUG_26';
     const groupLink = '@neetpw01';
-    const channelLink = '@NEETUG_26';
 
-    const isMember = await isMemberOfBoth(ctx);
-    if (!isMember) {
-      await ctx.telegram.sendMessage(
-        user.id,
-        `Hey ${user.first_name},\n\nPlease **join all my update channels to use me**!\n\n👉 [Join Channel ${channelLink}](https://t.me/${channelLink.replace('@', '')})\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
-        {
-          parse_mode: 'Markdown',
-          disable_web_page_preview: true,
-        }
-      );
+    // Check if user has joined the required channel
+    try {
+      const member = await ctx.telegram.getChatMember(channelId, user.id);
+      if (['left', 'kicked'].includes(member.status)) {
+        await ctx.telegram.sendMessage(
+          user.id,
+          `Hey ${user.first_name},\n\nPlease **join all my update channels to use me**!\n\n👉 [Join Channel @NEETUG_26](https://t.me/NEETUG_26)\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})`,
+          {
+            parse_mode: 'Markdown',
+            disable_web_page_preview: true,
+          } as any
+        );
+        return;
+      }
+    } catch (err) {
+      console.error('Error checking channel membership:', err);
+      await ctx.reply('Unable to verify your channel membership. Please try again later.');
       return;
     }
 
-    // Skip PDF-style keywords
+    // Skip command-like messages
     if (/^[pbcq][0-9]+$/i.test(text) || /^[pbcq]r$/i.test(text)) return;
 
     const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
