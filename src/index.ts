@@ -1,4 +1,3 @@
-// --- index.ts ---
 import { Telegraf } from 'telegraf';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { saveToSheet } from './utils/saveToSheet';
@@ -9,7 +8,7 @@ import { pdf } from './commands/pdf';
 import { greeting, checkMembership } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
-import { broadcast } from './commands/broadcast';
+import { setupBroadcast } from './commands/broadcast';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -32,7 +31,7 @@ bot.command('about', about());
 
 // Multiple triggers for help/material/pdf content
 const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
-bot.command(helpTriggers, help());
+helpTriggers.forEach(trigger => bot.command(trigger, help()));
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 
 // Admin: /users
@@ -54,12 +53,11 @@ bot.command('users', async (ctx) => {
 });
 
 // Admin: /broadcast
-bot.command('broadcast', broadcast(ADMIN_ID));
+setupBroadcast(bot);
 
 // --- Callback Handler ---
 bot.on('callback_query', async (ctx) => {
   const callback = ctx.callbackQuery;
-
   if ('data' in callback) {
     const data = callback.data;
 
@@ -112,18 +110,14 @@ bot.start(async (ctx) => {
 
 // --- Text Handler ---
 bot.on('text', async (ctx) => {
-  try {
-    if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
+  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
-    const text = ctx.message.text?.toLowerCase();
-    if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
-      await help()(ctx);
-    } else {
-      await greeting()(ctx);
-      await pdf()(ctx);
-    }
-  } catch (err) {
-    console.error('Error handling text:', err);
+  const text = ctx.message.text?.toLowerCase();
+  if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
+    await help()(ctx);
+  } else {
+    await greeting()(ctx);
+    await pdf()(ctx);
   }
 });
 
