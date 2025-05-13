@@ -1,10 +1,10 @@
+// src/commands/help.ts
 import { Context } from 'telegraf';
-import { InlineKeyboard } from 'telegraf/typings/telegram-types';
-import data from './pdf.json';
+import data from '../pdf.json'; // adjust path as needed
 import createDebug from 'debug';
+import { Markup } from 'telegraf';
 
 const debug = createDebug('bot:help_command');
-
 const ITEMS_PER_PAGE = 4;
 
 const help = () => async (ctx: Context) => {
@@ -26,20 +26,30 @@ const sendPage = async (ctx: Context, page: number) => {
     message += `────────┉┈◈◉◈┈┉───────\n`;
   }
 
-  const keyboard: InlineKeyboard = { inline_keyboard: [] };
-  if (page > 0) keyboard.inline_keyboard.push([{ text: '⬅ Previous', callback_data: `help_page_${page - 1}` }]);
-  if (end < data.length) keyboard.inline_keyboard.push([{ text: 'Next ➡', callback_data: `help_page_${page + 1}` }]);
+  const keyboard = [];
 
-  await ctx.replyWithMarkdownV2(message, { reply_markup: keyboard });
+  if (page > 0) {
+    keyboard.push([{ text: '⬅ Previous', callback_data: `help_page_${page - 1}` }]);
+  }
+  if (end < data.length) {
+    keyboard.push([{ text: 'Next ➡', callback_data: `help_page_${page + 1}` }]);
+  }
+
+  await ctx.replyWithMarkdownV2(message, {
+    reply_markup: Markup.inlineKeyboard(keyboard).reply_markup,
+  });
 };
 
 const handleHelpPagination = () => async (ctx: Context) => {
-  const callbackData = ctx.callbackQuery?.data;
-  const match = callbackData?.match(/help_page_(\d+)/);
-  if (!match) return;
-  const page = parseInt(match[1]);
-  await ctx.answerCbQuery();
-  await sendPage(ctx, page);
+  const callbackQuery = ctx.callbackQuery;
+
+  if (callbackQuery && 'data' in callbackQuery) {
+    const match = callbackQuery.data.match(/help_page_(\d+)/);
+    if (!match) return;
+    const page = parseInt(match[1]);
+    await ctx.answerCbQuery();
+    await sendPage(ctx, page);
+  }
 };
 
 export { help, handleHelpPagination };
