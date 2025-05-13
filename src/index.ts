@@ -18,7 +18,7 @@ console.log(`Running bot in ${ENVIRONMENT} mode`);
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// Middleware to restrict to private chats and verify membership
+// Restrict to private chats & members only
 bot.use(async (ctx, next) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
   const isAllowed = await checkMembership(ctx);
@@ -27,9 +27,13 @@ bot.use(async (ctx, next) => {
 
 // --- Commands ---
 bot.command('about', about());
-bot.command('help', help());
 
-// Admin command to see user stats
+// Multiple triggers for help/material/pdf content
+const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
+bot.command(helpTriggers, help());
+bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
+
+// Admin: /users
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
@@ -105,8 +109,14 @@ bot.start(async (ctx) => {
 bot.on('text', async (ctx) => {
   try {
     if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
-    await greeting()(ctx);
-    await pdf()(ctx);
+
+    const text = ctx.message.text?.toLowerCase();
+    if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
+      await help()(ctx);
+    } else {
+      await greeting()(ctx);
+      await pdf()(ctx);
+    }
   } catch (err) {
     console.error('Error handling text:', err);
   }
