@@ -1,140 +1,166 @@
-import { Telegraf } from 'telegraf';  
-import { VercelRequest, VercelResponse } from '@vercel/node';  
-import { saveToSheet } from './utils/saveToSheet';  
-import { fetchChatIdsFromSheet } from './utils/chatStore';  
-import { about } from './commands/about';  
-import { help, handleHelpPagination } from './commands/help';  
-import { pdf } from './commands/pdf';  
-import { greeting, checkMembership } from './text/greeting';  
-import { production, development } from './core';  
-import { isPrivateChat } from './utils/groupSettings';  
-  
-const BOT_TOKEN = process.env.BOT_TOKEN || '';  
-const ENVIRONMENT = process.env.NODE_ENV || '';  
-const ADMIN_ID = 6930703214;  
+// --- index.ts ---
+import { Telegraf } from 'telegraf';
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { saveToSheet } from './utils/saveToSheet';
+import { fetchChatIdsFromSheet } from './utils/chatStore';
+import { about } from './commands/about';
+import { help, handleHelpPagination } from './commands/help';
+import { pdf } from './commands/pdf';
+import { greeting, checkMembership } from './text/greeting';
+import { production, development } from './core';
+import { isPrivateChat } from './utils/groupSettings';
+import { broadcast } from './commands/broadcast';
 
-if (!BOT_TOKEN) throw new Error('BOT_TOKEN not provided!');  
-console.log(`Running bot in ${ENVIRONMENT} mode`);  
+const BOT_TOKEN = process.env.BOT_TOKEN || '';
+const ENVIRONMENT = process.env.NODE_ENV || '';
+const ADMIN_ID = 6930703214;
 
-const bot = new Telegraf(BOT_TOKEN);  
+if (!BOT_TOKEN) throw new Error('BOT_TOKEN not provided!');
+console.log(`Running bot in ${ENVIRONMENT} mode`);
 
-// Restrict to private chats & members only  
-bot.use(async (ctx, next) => {  
-  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;  
-  const isAllowed = await checkMembership(ctx);  
-  if (isAllowed) await next();  
-});  
+const bot = new Telegraf(BOT_TOKEN);
 
-// --- Commands ---  
-bot.command('about', about());  
+// Restrict to private chats & members only
+bot.use(async (ctx, next) => {
+  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
+  const isAllowed = await checkMembership(ctx);
+  if (isAllowed) await next();
+});
 
-// Multiple triggers for help/material/pdf content  
-const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];  
-bot.command(helpTriggers, help());  
-bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());  
+// --- Commands ---
+bot.command('about', about());
 
-// Admin: /users  
-bot.command('users', async (ctx) => {  
-  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');  
+// Multiple triggers for help/material/pdf content
+const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
+bot.command(helpTriggers, help());
+bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 
-  try {  
-    const chatIds = await fetchChatIdsFromSheet();  
-    await ctx.reply(`📊 Total users: ${chatIds.length}`, {  
-      parse_mode: 'Markdown',  
-      reply_markup: {  
-        inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],  
-      },  
-    });  
-  } catch (err) {  
-    console.error('Error fetching user count:', err);  
-    await ctx.reply('❌ Unable to fetch user count.');  
-  }  
-});  
+// Admin: /users
+bot.command('users', async (ctx) => {
+  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
-// --- Callback Handler ---  
-bot.on('callback_query', async (ctx) => {  
-  const callback = ctx.callbackQuery;  
+  try {
+    const chatIds = await fetchChatIdsFromSheet();
+    await ctx.reply(`📊 Total users: ${chatIds.length}`, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching user count:', err);
+    await ctx.reply('❌ Unable to fetch user count.');
+  }
+});
 
-  if ('data' in callback) {  
-    const data = callback.data;  
+// Admin: /broadcast
+bot.command('broadcast', broadcast(ADMIN_ID));
 
-    if (data.startsWith('help_page_')) {  
-      await handleHelpPagination()(ctx);  
-    } else if (data === 'refresh_users' && ctx.from?.id === ADMIN_ID) {  
-      try {  
-        const chatIds = await fetchChatIdsFromSheet();  
-        await ctx.editMessageText(`📊 Total users: ${chatIds.length}`, {  
-          parse_mode: 'Markdown',  
-          reply_markup: {  
-            inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],  
-          },  
-        });  
-      } catch (err) {  
-        console.error('Error refreshing users:', err);  
-        await ctx.answerCbQuery('Failed to refresh.');  
-      }  
-    } else {  
-      await ctx.answerCbQuery('Unknown action');  
-    }  
-  } else {  
-    await ctx.answerCbQuery('Unsupported callback type');  
-  }  
-});  
+// --- Callback Handler ---
+bot.on('callback_query', async (ctx) => {
+  const callback = ctx.callbackQuery;
 
-// --- /start ---  
-bot.start(async (ctx) => {  
-  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;  
+  if ('data' in callback) {
+    const data = callback.data;
 
-  const user = ctx.from;  
-  const chat = ctx.chat;  
+    if (data.startsWith('help_page_')) {
+      await handleHelpPagination()(ctx);
+    } else if (data === 'refresh_users' && ctx.from?.id === ADMIN_ID) {
+      try {
+        const chatIds = await fetchChatIdsFromSheet();
+        await ctx.editMessageText(`📊 Total users: ${chatIds.length}`, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
+          },
+        });
+      } catch (err) {
+        console.error('Error refreshing users:', err);
+        await ctx.answerCbQuery('Failed to refresh.');
+      }
+    } else {
+      await ctx.answerCbQuery('Unknown action');
+    }
+  } else {
+    await ctx.answerCbQuery('Unsupported callback type');
+  }
+});
 
-  await greeting()(ctx);  
-  await pdf()(ctx);  
+// --- /start ---
+bot.start(async (ctx) => {
+  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
-  const alreadyNotified = await saveToSheet(chat);  
-  console.log(`Saved chat ID: ${chat.id} (${chat.type})`);  
+  const user = ctx.from;
+  const chat = ctx.chat;
 
-  if (chat.id !== ADMIN_ID && !alreadyNotified) {  
-    const name = user?.first_name || 'Unknown';  
-    const username = user?.username ? `@${user.username}` : 'N/A';  
-    await ctx.telegram.sendMessage(  
-      ADMIN_ID,  
-      `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,  
-      { parse_mode: 'Markdown' }  
-    );  
-  }  
-});  
+  await greeting()(ctx);
+  await pdf()(ctx);
 
-// --- Message Handler ---  
-bot.on('message', async (ctx) => {  
-  const chat = ctx.chat;  
-  if (!chat?.id || !isPrivateChat(chat.type)) return;  
-
-  const alreadyNotified = await saveToSheet(chat);  
+  const alreadyNotified = await saveToSheet(chat);
   console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
 
-  // Notify admin for any user interaction other than commands
-  if (chat.id !== ADMIN_ID && !alreadyNotified) {  
-    const user = ctx.from;  
-    const name = user?.first_name || 'Unknown';  
-    const username = user?.username ? `@${user.username}` : 'N/A';  
-    const message = ctx.message.text || 'Non-text message'; // If it's not a text, it's media or something else
-    const mediaType = ctx.message.photo ? 'photo' : ctx.message.video ? 'video' : ctx.message.document ? 'document' : 'other';
-  
-    // Send message to admin with the message details, including media type
-    await ctx.telegram.sendMessage(  
-      ADMIN_ID,  
-      `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}\n*Message:* ${message}\n*Media Type:* ${mediaType}`,
-      { parse_mode: 'Markdown' }  
-    );  
-  }  
-});  
+  if (chat.id !== ADMIN_ID && !alreadyNotified) {
+    const name = user?.first_name || 'Unknown';
+    const username = user?.username ? `@${user.username}` : 'N/A';
+    await ctx.telegram.sendMessage(
+      ADMIN_ID,
+      `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
+      { parse_mode: 'Markdown' }
+    );
+  }
+});
 
-// --- Vercel Export ---  
-export const startVercel = async (req: VercelRequest, res: VercelResponse) => {  
-  await production(req, res, bot);  
-};  
+// --- Text Handler ---
+bot.on('text', async (ctx) => {
+  try {
+    if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
-if (ENVIRONMENT !== 'production') {  
-  development(bot);  
+    const text = ctx.message.text?.toLowerCase();
+    if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
+      await help()(ctx);
+    } else {
+      await greeting()(ctx);
+      await pdf()(ctx);
+    }
+  } catch (err) {
+    console.error('Error handling text:', err);
+  }
+});
+
+// --- New Member Welcome (Group) ---
+bot.on('new_chat_members', async (ctx) => {
+  for (const member of ctx.message.new_chat_members) {
+    if (member.username === ctx.botInfo.username) {
+      await ctx.reply('Thanks for adding me! Type /help to get started.');
+    }
+  }
+});
+
+// --- Message Tracker for Private Chats ---
+bot.on('message', async (ctx) => {
+  const chat = ctx.chat;
+  if (!chat?.id || !isPrivateChat(chat.type)) return;
+
+  const alreadyNotified = await saveToSheet(chat);
+  console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
+
+  if (chat.id !== ADMIN_ID && !alreadyNotified) {
+    const user = ctx.from;
+    const name = user?.first_name || 'Unknown';
+    const username = user?.username ? `@${user.username}` : 'N/A';
+    await ctx.telegram.sendMessage(
+      ADMIN_ID,
+      `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
+      { parse_mode: 'Markdown' }
+    );
+  }
+});
+
+// --- Vercel Export ---
+export const startVercel = async (req: VercelRequest, res: VercelResponse) => {
+  await production(req, res, bot);
+};
+
+if (ENVIRONMENT !== 'production') {
+  development(bot);
 }
