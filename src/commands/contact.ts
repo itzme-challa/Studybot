@@ -1,83 +1,76 @@
 import { Context } from 'telegraf';
+import { TelegrafContext } from '../types';
+import { ADMIN_ID } from '../config';
 
-const ADMIN_ID = 6930703214;
+// Cache for storing pending user replies
+const userPending = new Map<number, number>();
 
-export const contact = () => async (ctx: Context) => {
-  const user = ctx.from!;
-  const chatId = ctx.chat!.id;
-  const name = user.first_name || 'Unknown';
-  const username = user.username ? `@${user.username}` : 'N/A';
-  const profileLink = username !== 'N/A' ? `https://t.me/${user.username}` : 'No link';
-
-  const text = 'text' in ctx.message! ? ctx.message.text : '';
-  const message = text.replace(/^\/contact\s*/i, '').trim();
-
-  if (!message) {
-    await ctx.reply('✏️ Please type your message after /contact to send it to the admin.');
-    return;
-  }
-
-  await ctx.telegram.sendMessage(
-    ADMIN_ID,
-    `*#Help Request Received!*\n\n*Name:* ${name}\n*Username:* ${username}\n*User ID:* ${user.id}\n*Profile:* ${profileLink}\n\n*Message:*\n${message}`,
-    { parse_mode: 'Markdown' }
+// /contact command
+export const contact = () => async (ctx: TelegrafContext) => {
+  await ctx.reply(
+    'Please type your message and I’ll forward it to the admin. You’ll be notified if they reply.'
   );
-
-  await ctx.reply('✅ Your message has been sent to the admin.');
+  userPending.set(ctx.chat.id, Date.now());
 };
 
-export const handleUserMessages = async (ctx: Context) => {
-  if (ctx.from?.id === ADMIN_ID) return;
+// Handle user messages
+export const handleUserMessages = async (ctx: TelegrafContext) => {
+  const chatId = ctx.chat.id;
+  if (!userPending.has(chatId)) return;
 
-  const user = ctx.from!;
-  const name = user.first_name || 'Unknown';
-  const username = user.username ? `@${user.username}` : 'N/A';
-  const profileLink = username !== 'N/A' ? `https://t.me/${user.username}` : 'No link';
+  const user = ctx.from;
+  const name = user?.first_name || 'Unknown';
+  const username = user?.username ? `@${user.username}` : 'N/A';
 
-  let content = '[Non-text message]';
-  if ('text' in ctx.message!) content = ctx.message.text;
-  else if ('caption' in ctx.message!) content = ctx.message.caption;
+  // Check that message has text or caption
+  const text = ctx.message?.text || ctx.message?.caption;
+  if (!text) {
+    await ctx.reply('Only text or media with captions can be forwarded.');
+    return;
+  }
 
-  await ctx.forwardMessage(ADMIN_ID);
-  await ctx.telegram.sendMessage(
-    ADMIN_ID,
-    `*User Message Details:*\n\n*Name:* ${name}\n*Username:* ${username}\n*User ID:* ${user.id}\n*Profile:* ${profileLink}\n\n*Message:*\n${content}`,
-    { parse_mode: 'Markdown' }
-  );
+  // Forward or resend message
+  try {
+    const sent = await ctx.forwardMessage(ADMIN_ID);
+    await ctx.telegram.sendMessage(
+      ADMIN_ID,
+      `*Reply to this user:* \n\nName: ${name}\nUsername: ${username}\nChat ID: ${chatId}`,
+      {
+        parse_mode: 'Markdown',
+        reply_to_message_id: sent.message_id,
+      }
+    );
+    await ctx.reply('Your message has been sent to the admin.');
+  } catch (err) {
+    console.error('Forward failed:', err);
+    await ctx.reply('Failed to send message to admin.');
+  }
+
+  userPending.delete(chatId);
 };
 
-export const handleAdminReply = async (ctx: Context) => {
-  if (!ctx.message || ctx.from?.id !== ADMIN_ID) return;
-
-  const text = 'text' in ctx.message ? ctx.message.text : '';
-  const args = text.split(' ').slice(1);
-
-  if (args.length < 1) {
-    await ctx.reply('Usage: /reply <user_id> <message> or reply to a message with /reply <user_id>');
-    return;
+// Admin replying to users
+export const handleAdminReply = async (ctx: TelegrafContext) => {
+  if (!ctx.message?.reply_to_message) {
+    return ctx.reply('Please reply to the user message you want to respond to.');
   }
 
-  const userId = parseInt(args[0]);
-  const customMessage = args.slice(1).join(' ').trim();
+  const replyText = ctx.message.text;
+  if (!replyText) return ctx.reply('You need to type a reply.');
 
-  let messageToSend = customMessage;
+  const originalText = ctx.message.reply_to_message.text || ctx.message.reply_to_message.caption;
+  const match = originalText?.match(/Chat ID: (\d+)/);
+  const targetChatId = match?.[1];
 
-  if (!messageToSend && 'reply_to_message' in ctx.message && 'text' in ctx.message.reply_to_message!) {
-    messageToSend = ctx.message.reply_to_message.text;
-  }
-
-  if (!messageToSend) {
-    await ctx.reply('❌ No message content found to send.');
-    return;
+  if (!targetChatId) {
+    return ctx.reply('Could not find the target chat ID.');
   }
 
   try {
-    await ctx.telegram.sendMessage(userId, `*Admin Reply:*\n\n${messageToSend}`, {
-      parse_mode: 'Markdown',
-    });
-    await ctx.reply('✅ Message sent to the user.');
-  } catch (err) {
-    console.error('Failed to reply to user:', err);
-    await ctx.reply('❌ Failed to send message. User may have blocked the bot or ID is invalid.');
+    await ctx.telegram.sendMessage(Number(targetChatId), `Admin replied:\n\n${replyText}`);
+    await ctx.reply('Reply sent.');
+  } catch (error) {
+    console.error('Admin reply failed:', error);
+    await ctx.reply('Failed to send reply.');
   }
 };
