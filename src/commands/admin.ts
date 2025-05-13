@@ -60,15 +60,18 @@ export const notifyNewUser = async (ctx: Context, type: 'start' | 'interacted') 
 // Optional: Admin-only /reply and /contact commands (basic version)
 export const handleReplyCommand = () => async (ctx: Context) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-  const replyTo = ctx.message?.reply_to_message;
+
+  const replyTo = ctx.message?.reply_to_message; // Optional chaining to avoid undefined errors
   if (!replyTo || !replyTo.from?.id) return ctx.reply('Reply to a user message.');
 
-  await ctx.telegram.sendMessage(replyTo.from.id, ctx.message.text?.split(' ').slice(1).join(' ') || '');
+  const replyText = ctx.message?.text?.split(' ').slice(1).join(' ') || '';
+  await ctx.telegram.sendMessage(replyTo.from.id, replyText);
 };
 
 export const handleContactCommand = () => async (ctx: Context) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-  const parts = ctx.message.text?.split(' ');
+  
+  const parts = ctx.message?.text?.split(' '); // Optional chaining here as well
   const chatId = Number(parts?.[1]);
   const msg = parts?.slice(2).join(' ');
 
