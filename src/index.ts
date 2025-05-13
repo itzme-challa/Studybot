@@ -8,8 +8,6 @@ import { pdf } from './commands/pdf';
 import { greeting, checkMembership } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
-import { setupBroadcast } from './commands/broadcast';
-import { contact, handleUserMessages, handleAdminReply } from './commands/contact';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -30,12 +28,12 @@ bot.use(async (ctx, next) => {
 // --- Commands ---
 bot.command('about', about());
 
+// Multiple triggers for help/material/pdf content
 const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
-helpTriggers.forEach(trigger => bot.command(trigger, help()));
+bot.command(helpTriggers, help());
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 
-bot.command('contact', contact());
-
+// Admin: /users
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
@@ -53,11 +51,10 @@ bot.command('users', async (ctx) => {
   }
 });
 
-setupBroadcast(bot);
-
 // --- Callback Handler ---
 bot.on('callback_query', async (ctx) => {
   const callback = ctx.callbackQuery;
+
   if ('data' in callback) {
     const data = callback.data;
 
@@ -102,54 +99,55 @@ bot.start(async (ctx) => {
     const username = user?.username ? `@${user.username}` : 'N/A';
     await ctx.telegram.sendMessage(
       ADMIN_ID,
-      `*New user started the bot!*
-
-*Name:* ${name}
-*Username:* ${username}
-*Chat ID:* ${chat.id}
-*Type:* ${chat.type}`,
+      `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
       { parse_mode: 'Markdown' }
     );
   }
 });
 
-// --- Text/Media Handler (General + Contact) ---
+// --- Text Handler ---
+bot.on('text', async (ctx) => {
+  try {
+    if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
+
+    const text = ctx.message.text?.toLowerCase();
+    if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
+      await help()(ctx);
+    } else {
+      await greeting()(ctx);
+      await pdf()(ctx);
+    }
+  } catch (err) {
+    console.error('Error handling text:', err);
+  }
+});
+
+// --- New Member Welcome (Group) ---
+bot.on('new_chat_members', async (ctx) => {
+  for (const member of ctx.message.new_chat_members) {
+    if (member.username === ctx.botInfo.username) {
+      await ctx.reply(`Thanks for adding me! Type /help to get started.`);
+    }
+  }
+});
+
+// --- Message Tracker for Private Chats ---
 bot.on('message', async (ctx) => {
-  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
+  const chat = ctx.chat;
+  if (!chat?.id || !isPrivateChat(chat.type)) return;
 
-  const alreadyNotified = await saveToSheet(ctx.chat);
+  const alreadyNotified = await saveToSheet(chat);
+  console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
 
-  if (ctx.chat.id !== ADMIN_ID && !alreadyNotified) {
+  if (chat.id !== ADMIN_ID && !alreadyNotified) {
     const user = ctx.from;
     const name = user?.first_name || 'Unknown';
     const username = user?.username ? `@${user.username}` : 'N/A';
     await ctx.telegram.sendMessage(
       ADMIN_ID,
-      `*New user interacted!*
-
-*Name:* ${name}
-*Username:* ${username}
-*Chat ID:* ${ctx.chat.id}
-*Type:* ${ctx.chat.type}`,
+      `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
       { parse_mode: 'Markdown' }
     );
-  }
-
-  await handleUserMessages(ctx);
-});
-
-// --- Admin /reply ---
-bot.command('reply', async (ctx) => {
-  if (ctx.from?.id !== ADMIN_ID) return;
-  await handleAdminReply(ctx);
-});
-
-// --- New Member Welcome ---
-bot.on('new_chat_members', async (ctx) => {
-  for (const member of ctx.message.new_chat_members) {
-    if (member.username === ctx.botInfo.username) {
-      await ctx.reply('Thanks for adding me! Type /help to get started.');
-    }
   }
 });
 
