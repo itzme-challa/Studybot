@@ -5,10 +5,9 @@ import { fetchChatIdsFromSheet } from './utils/chatStore';
 import { about } from './commands/about';
 import { help, handleHelpPagination } from './commands/help';
 import { pdf } from './commands/pdf';
-import { greeting } from './text/greeting';
+import { greeting, checkMembership } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
-import { checkMembership } from './text/greeting';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -19,21 +18,18 @@ console.log(`Running bot in ${ENVIRONMENT} mode`);
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// Middleware: Verify user membership in private chats
+// Middleware to restrict to private chats and verify membership
 bot.use(async (ctx, next) => {
-  if (ctx.chat?.type === 'private') {
-    const isAllowed = await checkMembership(ctx);
-    if (isAllowed) await next();
-  } else {
-    await next();
-  }
+  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
+  const isAllowed = await checkMembership(ctx);
+  if (isAllowed) await next();
 });
 
-// --- COMMANDS ---
+// --- Commands ---
 bot.command('about', about());
 bot.command('help', help());
 
-// /users (admin only)
+// Admin command to see user stats
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
@@ -51,9 +47,10 @@ bot.command('users', async (ctx) => {
   }
 });
 
-// Handle callback queries
+// --- Callback Handler ---
 bot.on('callback_query', async (ctx) => {
   const callback = ctx.callbackQuery;
+
   if ('data' in callback) {
     const data = callback.data;
 
@@ -80,7 +77,7 @@ bot.on('callback_query', async (ctx) => {
   }
 });
 
-// /start command
+// --- /start ---
 bot.start(async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
@@ -98,20 +95,16 @@ bot.start(async (ctx) => {
     const username = user?.username ? `@${user.username}` : 'N/A';
     await ctx.telegram.sendMessage(
       ADMIN_ID,
-      `*New user started the bot!*
-
-*Name:* ${name}
-*Username:* ${username}
-*Chat ID:* ${chat.id}
-*Type:* ${chat.type}`,
+      `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
       { parse_mode: 'Markdown' }
     );
   }
 });
 
-// TEXT HANDLER
+// --- Text Handler ---
 bot.on('text', async (ctx) => {
   try {
+    if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
     await greeting()(ctx);
     await pdf()(ctx);
   } catch (err) {
@@ -119,7 +112,7 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// NEW USER WELCOME IN GROUP
+// --- New Member Welcome (Group) ---
 bot.on('new_chat_members', async (ctx) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
@@ -128,7 +121,7 @@ bot.on('new_chat_members', async (ctx) => {
   }
 });
 
-// PRIVATE CHAT USER TRACKER
+// --- Message Tracker for Private Chats ---
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
   if (!chat?.id || !isPrivateChat(chat.type)) return;
@@ -142,18 +135,13 @@ bot.on('message', async (ctx) => {
     const username = user?.username ? `@${user.username}` : 'N/A';
     await ctx.telegram.sendMessage(
       ADMIN_ID,
-      `*New user interacted!*
-
-*Name:* ${name}
-*Username:* ${username}
-*Chat ID:* ${chat.id}
-*Type:* ${chat.type}`,
+      `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
       { parse_mode: 'Markdown' }
     );
   }
 });
 
-// DEPLOYMENT
+// --- Vercel Export ---
 export const startVercel = async (req: VercelRequest, res: VercelResponse) => {
   await production(req, res, bot);
 };
