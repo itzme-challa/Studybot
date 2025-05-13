@@ -1,10 +1,7 @@
-// commands/contact.ts
-
 import { Context } from 'telegraf';
 
 const ADMIN_ID = 6930703214;
 
-// /contact command: forwards message with #help highlight to admin
 export const contact = () => async (ctx: Context) => {
   const user = ctx.from!;
   const chatId = ctx.chat!.id;
@@ -12,8 +9,8 @@ export const contact = () => async (ctx: Context) => {
   const username = user.username ? `@${user.username}` : 'N/A';
   const profileLink = username !== 'N/A' ? `https://t.me/${user.username}` : 'No link';
 
-  const text = ctx.message?.text?.trim() || '';
-  const message = text.replace(/^\/contact\s*/, '').trim();
+  const text = 'text' in ctx.message! ? ctx.message.text : '';
+  const message = text.replace(/^\/contact\s*/i, '').trim();
 
   if (!message) {
     await ctx.reply('✏️ Please type your message after /contact to send it to the admin.');
@@ -22,22 +19,13 @@ export const contact = () => async (ctx: Context) => {
 
   await ctx.telegram.sendMessage(
     ADMIN_ID,
-    `*#Help Request Received!*
-
-*Name:* ${name}
-*Username:* ${username}
-*User ID:* ${user.id}
-*Profile:* ${profileLink}
-
-*Message:*
-${message}`,
+    `*#Help Request Received!*\n\n*Name:* ${name}\n*Username:* ${username}\n*User ID:* ${user.id}\n*Profile:* ${profileLink}\n\n*Message:*\n${message}`,
     { parse_mode: 'Markdown' }
   );
 
   await ctx.reply('✅ Your message has been sent to the admin.');
 };
 
-// Forwards all user messages to admin with context
 export const handleUserMessages = async (ctx: Context) => {
   if (ctx.from?.id === ADMIN_ID) return;
 
@@ -46,31 +34,27 @@ export const handleUserMessages = async (ctx: Context) => {
   const username = user.username ? `@${user.username}` : 'N/A';
   const profileLink = username !== 'N/A' ? `https://t.me/${user.username}` : 'No link';
 
-  const content = ctx.message?.text || ctx.message?.caption || '[Non-text message]';
+  let content = '[Non-text message]';
+  if ('text' in ctx.message!) content = ctx.message.text;
+  else if ('caption' in ctx.message!) content = ctx.message.caption;
 
   await ctx.forwardMessage(ADMIN_ID);
   await ctx.telegram.sendMessage(
     ADMIN_ID,
-    `*User Message Details:*
-
-*Name:* ${name}
-*Username:* ${username}
-*User ID:* ${user.id}
-*Profile:* ${profileLink}
-
-*Message:*
-${content}`,
+    `*User Message Details:*\n\n*Name:* ${name}\n*Username:* ${username}\n*User ID:* ${user.id}\n*Profile:* ${profileLink}\n\n*Message:*\n${content}`,
     { parse_mode: 'Markdown' }
   );
 };
 
-// Admin uses /reply <user_id> <message> or replies with /reply <user_id> to send reply
 export const handleAdminReply = async (ctx: Context) => {
-  const text = ctx.message?.text || '';
+  if (!ctx.message || ctx.from?.id !== ADMIN_ID) return;
+
+  const text = 'text' in ctx.message ? ctx.message.text : '';
   const args = text.split(' ').slice(1);
 
   if (args.length < 1) {
-    return ctx.reply('Usage: /reply <user_id> <message> or reply to a message with /reply <user_id>');
+    await ctx.reply('Usage: /reply <user_id> <message> or reply to a message with /reply <user_id>');
+    return;
   }
 
   const userId = parseInt(args[0]);
@@ -78,19 +62,17 @@ export const handleAdminReply = async (ctx: Context) => {
 
   let messageToSend = customMessage;
 
-  // If no message is typed, use the replied message text
-  if (!messageToSend && ctx.message?.reply_to_message?.text) {
+  if (!messageToSend && 'reply_to_message' in ctx.message && 'text' in ctx.message.reply_to_message!) {
     messageToSend = ctx.message.reply_to_message.text;
   }
 
   if (!messageToSend) {
-    return ctx.reply('❌ No message content found to send.');
+    await ctx.reply('❌ No message content found to send.');
+    return;
   }
 
   try {
-    await ctx.telegram.sendMessage(userId, `*Admin Reply:*
-
-${messageToSend}`, {
+    await ctx.telegram.sendMessage(userId, `*Admin Reply:*\n\n${messageToSend}`, {
       parse_mode: 'Markdown',
     });
     await ctx.reply('✅ Message sent to the user.');
