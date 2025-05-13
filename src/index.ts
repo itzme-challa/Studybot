@@ -43,11 +43,14 @@ bot.command('contact', handleContactCommand());
 // --- Callback Handler ---
 bot.on('callback_query', async (ctx) => {
   const callbackQuery = ctx.callbackQuery;
-  if (!callbackQuery || !callbackQuery.data) return ctx.answerCbQuery('Unsupported callback type');
-
-  const data = callbackQuery.data;
-  if (data.startsWith('help_page_')) return handleHelpPagination()(ctx);
-  if (data === 'refresh_users') return handleRefreshUsersCallback()(ctx);
+  if (!callbackQuery) return ctx.answerCbQuery('Unsupported callback type');
+  
+  // Type Guard for CallbackQuery
+  if ('data' in callbackQuery) {
+    const data = callbackQuery.data;
+    if (data.startsWith('help_page_')) return handleHelpPagination()(ctx);
+    if (data === 'refresh_users') return handleRefreshUsersCallback()(ctx);
+  }
 
   return ctx.answerCbQuery('Unknown action');
 });
