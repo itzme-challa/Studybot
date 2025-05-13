@@ -110,19 +110,18 @@ bot.start(async (ctx) => {
 
 // --- Text/Media Handler (General + Contact) ---
 bot.on('message', async (ctx) => {
-  const chat = ctx.chat;
-  if (!chat?.id || !isPrivateChat(chat.type)) return;
+  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
   // Save user to sheet
-  const alreadyNotified = await saveToSheet(chat);
+  const alreadyNotified = await saveToSheet(ctx.chat);
 
-  if (chat.id !== ADMIN_ID && !alreadyNotified) {
+  if (ctx.chat.id !== ADMIN_ID && !alreadyNotified) {
     const user = ctx.from;
     const name = user?.first_name || 'Unknown';
     const username = user?.username ? `@${user.username}` : 'N/A';
     await ctx.telegram.sendMessage(
       ADMIN_ID,
-      `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
+      `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${ctx.chat.id}\n*Type:* ${ctx.chat.type}`,
       { parse_mode: 'Markdown' }
     );
   }
