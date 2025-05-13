@@ -42,26 +42,31 @@ bot.command('users', async (ctx) => {
 
 // Handle pagination & refresh buttons
 bot.on('callback_query', async (ctx) => {
-  const data = ctx.callbackQuery?.data;
-  if (!data) return;
+  const callback = ctx.callbackQuery;
 
-  if (data.startsWith('help_page_')) {
-    await handleHelpPagination()(ctx);
-  } else if (data === 'refresh_users' && ctx.from?.id === ADMIN_ID) {
-    try {
-      const chatIds = await fetchChatIdsFromSheet();
-      await ctx.editMessageText(`📊 Total users: ${chatIds.length}`, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
-        },
-      });
-    } catch (err) {
-      console.error('Error refreshing users:', err);
-      await ctx.answerCbQuery('Failed to refresh.');
+  if ('data' in callback) {
+    const data = callback.data;
+
+    if (data.startsWith('help_page_')) {
+      await handleHelpPagination()(ctx);
+    } else if (data === 'refresh_users' && ctx.from?.id === ADMIN_ID) {
+      try {
+        const chatIds = await fetchChatIdsFromSheet();
+        await ctx.editMessageText(`📊 Total users: ${chatIds.length}`, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
+          },
+        });
+      } catch (err) {
+        console.error('Error refreshing users:', err);
+        await ctx.answerCbQuery('Failed to refresh.');
+      }
+    } else {
+      await ctx.answerCbQuery('Unknown action');
     }
   } else {
-    await ctx.answerCbQuery('Unknown action');
+    await ctx.answerCbQuery('Unsupported callback type');
   }
 });
 
