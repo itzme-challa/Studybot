@@ -1,5 +1,4 @@
 import { Context } from 'telegraf';
-import { TelegrafContext } from '../types';
 import { ADMIN_ID } from '../config';
 
 // Cache for storing pending user replies
