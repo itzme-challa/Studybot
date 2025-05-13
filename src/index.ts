@@ -135,22 +135,32 @@ await ctx.reply(Thanks for adding me! Type /help to get started.);
 
 // --- Message Tracker for Private Chats ---
 bot.on('message', async (ctx) => {
-const chat = ctx.chat;
-if (!chat?.id || !isPrivateChat(chat.type)) return;
+  const chat = ctx.chat;
+  const user = ctx.from;
 
-const alreadyNotified = await saveToSheet(chat);
-console.log(Saved chat ID: ${chat.id} (${chat.type}));
+  if (!chat?.id || !isPrivateChat(chat.type)) return;
 
-if (chat.id !== ADMIN_ID && !alreadyNotified) {
-const user = ctx.from;
-const name = user?.first_name || 'Unknown';
-const username = user?.username ? @${user.username} : 'N/A';
-await ctx.telegram.sendMessage(
-ADMIN_ID,
-*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type},
-{ parse_mode: 'Markdown' }
-);
-}
+  const alreadyNotified = await saveToSheet(chat);
+  console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
+
+  // Forward the message (text or media) to the ADMIN
+  if (chat.id !== ADMIN_ID) {
+    try {
+      await ctx.forwardMessage(ADMIN_ID);
+
+      if (!alreadyNotified) {
+        const name = user?.first_name || 'Unknown';
+        const username = user?.username ? `@${user.username}` : 'N/A';
+        await ctx.telegram.sendMessage(
+          ADMIN_ID,
+          `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+    } catch (err) {
+      console.error('Error forwarding message:', err);
+    }
+  }
 });
 
 // --- Vercel Export ---
