@@ -21,39 +21,60 @@ const bot = new Telegraf(BOT_TOKEN);
 // --- COMMANDS ---
 bot.command('about', about());
 bot.command('help', help());
-// Handle pagination buttons (Next/Previous)
-bot.on('callback_query', async (ctx) => {
-  const data = ctx.callbackQuery?.data;
-  if (data?.startsWith('help_page_')) {
-    await handleHelpPagination()(ctx);
-  } else if (data === 'refresh_users' && ctx.from?.id === ADMIN_ID) {
+
+// /users (admin only)
+bot.command('users', async (ctx) => {
+  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
+
+  try {
     const chatIds = await fetchChatIdsFromSheet();
-    await ctx.editMessageText(`📊 Total users: ${chatIds.length}`, {
+    await ctx.reply(`📊 Total users: ${chatIds.length}`, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
       },
     });
+  } catch (err) {
+    console.error('Error fetching user count:', err);
+    await ctx.reply('❌ Unable to fetch user count.');
+  }
+});
+
+// Handle pagination & refresh buttons
+bot.on('callback_query', async (ctx) => {
+  const data = ctx.callbackQuery?.data;
+  if (!data) return;
+
+  if (data.startsWith('help_page_')) {
+    await handleHelpPagination()(ctx);
+  } else if (data === 'refresh_users' && ctx.from?.id === ADMIN_ID) {
+    try {
+      const chatIds = await fetchChatIdsFromSheet();
+      await ctx.editMessageText(`📊 Total users: ${chatIds.length}`, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
+        },
+      });
+    } catch (err) {
+      console.error('Error refreshing users:', err);
+      await ctx.answerCbQuery('Failed to refresh.');
+    }
   } else {
     await ctx.answerCbQuery('Unknown action');
   }
 });
 
+// /start command
 bot.start(async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
   const user = ctx.from;
   const chat = ctx.chat;
 
-  // Removed: await ctx.reply('Welcome! Use /help to explore commands.');
-
-  // Trigger greeting
   await greeting()(ctx);
-
-  // Trigger PDF (in case user typed "/start")
   await pdf()(ctx);
 
-  // Save user if not already saved
   const alreadyNotified = await saveToSheet(chat);
   console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
 
@@ -68,7 +89,7 @@ bot.start(async (ctx) => {
   }
 });
 
-// --- UNIVERSAL TEXT HANDLER (greeting + pdf) ---
+// TEXT HANDLER
 bot.on('text', async (ctx) => {
   try {
     await greeting()(ctx);
@@ -78,7 +99,7 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// --- NEW USER WELCOME IN GROUP ---
+// NEW USER WELCOME IN GROUP
 bot.on('new_chat_members', async (ctx) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
@@ -87,7 +108,7 @@ bot.on('new_chat_members', async (ctx) => {
   }
 });
 
-// --- PRIVATE CHAT USER SAVING (fallback) ---
+// PRIVATE CHAT USER TRACKER
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
   if (!chat?.id || !isPrivateChat(chat.type)) return;
@@ -107,7 +128,7 @@ bot.on('message', async (ctx) => {
   }
 });
 
-// --- DEPLOYMENT HANDLER ---
+// DEPLOYMENT
 export const startVercel = async (req: VercelRequest, res: VercelResponse) => {
   await production(req, res, bot);
 };
