@@ -21,23 +21,21 @@ const bot = new Telegraf(BOT_TOKEN);
 // --- COMMANDS ---
 bot.command('about', about());
 bot.command('help', help());
-bot.on('callback_query', handleHelpPagination());
-
-// /users (admin only)
-bot.command('users', async (ctx) => {
-  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-
-  try {
+// Handle pagination buttons (Next/Previous)
+bot.on('callback_query', async (ctx) => {
+  const data = ctx.callbackQuery?.data;
+  if (data?.startsWith('help_page_')) {
+    await handleHelpPagination()(ctx);
+  } else if (data === 'refresh_users' && ctx.from?.id === ADMIN_ID) {
     const chatIds = await fetchChatIdsFromSheet();
-    await ctx.reply(`📊 Total users: ${chatIds.length}`, {
+    await ctx.editMessageText(`📊 Total users: ${chatIds.length}`, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
       },
     });
-  } catch (err) {
-    console.error('Error fetching user count:', err);
-    await ctx.reply('❌ Unable to fetch user count.');
+  } else {
+    await ctx.answerCbQuery('Unknown action');
   }
 });
 
