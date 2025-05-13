@@ -59,48 +59,71 @@ export const notifyNewUser = async (ctx: Context, type: 'start' | 'interacted') 
 
 export const handleReplyCommand = () => async (ctx: Context) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-
-  // Check if the message exists and is a text message with reply
   if (!ctx.message || !('reply_to_message' in ctx.message) || !ctx.message.reply_to_message) {
     return ctx.reply('Reply to a user message.');
   }
 
   const replyTo = ctx.message.reply_to_message;
-  
-  // Check if the replied message has a 'from' field and ensure it's not undefined
-  if (!('from' in replyTo) || !replyTo.from) return ctx.reply('Cannot reply to this type of message.');
-  
-  const replyText = 'text' in ctx.message ? ctx.message.text?.split(' ').slice(1).join(' ') : '';
-  if (!replyText) return ctx.reply('Please provide a message to send.');
+  const text = ctx.message.text?.split(' ');
+
+  const userId = Number(text?.[1]);
+  const replyText = text?.slice(2).join(' ') || replyTo.text;
+
+  if (!userId || !replyText) return ctx.reply('Usage: /reply <user_id> <message>');
 
   try {
-    await ctx.telegram.sendMessage(replyTo.from.id, replyText);
+    await ctx.telegram.sendMessage(userId, replyText);
     await ctx.reply('Message sent.');
   } catch (err) {
-    console.error('Error sending reply:', err);
+    console.error('Error replying to user:', err);
     await ctx.reply('Failed to send message.');
   }
 };
 
 export const handleContactCommand = () => async (ctx: Context) => {
-  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-  
-  // Check if the message exists and has text
-  if (!ctx.message || !('text' in ctx.message)) {
-    return ctx.reply('Invalid command format.');
-  }
+  const user = ctx.from;
+  if (!user) return;
 
-  const parts = ctx.message.text.split(' ');
-  const chatId = Number(parts[1]);
-  const msg = parts.slice(2).join(' ');
-
-  if (!chatId || !msg) return ctx.reply('Usage: /contact <chat_id> <message>');
+  const text = ctx.message?.text?.split(' ').slice(1).join(' ');
+  const reply = ctx.message?.reply_to_message;
 
   try {
-    await ctx.telegram.sendMessage(chatId, msg);
-    await ctx.reply('Message sent.');
+    if (text) {
+      await ctx.telegram.sendMessage(
+        ADMIN_ID,
+        `#help\nFrom: ${user.first_name} (@${user.username || 'N/A'})\nID: ${user.id}\nMessage: ${text}`
+      );
+      await ctx.reply('Your message has been sent to the admin.');
+    } else if (reply) {
+      await ctx.telegram.sendMessage(
+        ADMIN_ID,
+        `#help\nFrom: ${user.first_name} (@${user.username || 'N/A'})\nID: ${user.id}\nReplied Message: ${reply.text || '[Non-text message]'}`
+      );
+      await ctx.reply('Your replied message has been sent to the admin.');
+    } else {
+      await ctx.reply('Usage: /contact <message> or reply with /contact');
+    }
   } catch (err) {
-    console.error('Error sending contact message:', err);
-    await ctx.reply('Failed to send message.');
+    console.error('Error handling contact message:', err);
+    await ctx.reply('Failed to contact admin.');
+  }
+};
+
+// Forward all user messages to admin
+export const forwardAllMessagesToAdmin = () => async (ctx: Context) => {
+  if (ctx.from?.id === ADMIN_ID) return; // Ignore admin messages
+  if (!ctx.message) return;
+
+  try {
+    const name = ctx.from?.first_name || 'Unknown';
+    const username = ctx.from?.username ? `@${ctx.from.username}` : 'N/A';
+
+    await ctx.telegram.forwardMessage(ADMIN_ID, ctx.chat.id, ctx.message.message_id);
+    await ctx.telegram.sendMessage(
+      ADMIN_ID,
+      `From: ${name} (${username})\nUserID: ${ctx.from?.id}`
+    );
+  } catch (err) {
+    console.error('Failed to forward user message:', err);
   }
 };
