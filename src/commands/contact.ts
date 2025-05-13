@@ -12,16 +12,15 @@ export const contact = () => {
 };
 
 export const handleUserMessages = async (ctx: Context) => {
-  if (!ctx.chat || !ctx.from) return;
+  if (!ctx.chat || !ctx.from || !ctx.message) return; // <- FIX: check for ctx.message
 
   const message = ctx.message;
 
-  // Forward to admin if not from admin
   if (ctx.from.id !== ADMIN_ID) {
     const name = ctx.from.first_name;
     const username = ctx.from.username ?? 'N/A';
 
-    if ('text' in message) {
+    if ('text' in message && message.text) {
       const content = message.text;
       await ctx.telegram.sendMessage(
         ADMIN_ID,
@@ -37,7 +36,7 @@ export const handleUserMessages = async (ctx: Context) => {
         );
       }
     } else {
-      // For non-text messages
+      // Forward non-text message
       await ctx.telegram.forwardMessage(ADMIN_ID, ctx.chat.id, message.message_id);
     }
   }
