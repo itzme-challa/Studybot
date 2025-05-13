@@ -12,7 +12,9 @@ import {
   notifyNewUser,
   handleReplyCommand,
   handleContactCommand,
+  forwardAllMessagesToAdmin,
 } from './commands/admin';
+
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -37,9 +39,9 @@ bot.command(helpTriggers, help());
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 
 bot.command('users', handleUsersCommand());
+bot.action('refresh_users', handleRefreshUsersCallback());
 bot.command('reply', handleReplyCommand());
 bot.command('contact', handleContactCommand());
-
 // --- Callback Handler ---
 bot.on('callback_query', async (ctx) => {
   const callbackQuery = ctx.callbackQuery;
@@ -88,6 +90,10 @@ bot.on('message', async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
   await notifyNewUser(ctx, 'interacted');
 });
+bot.on('message', async (ctx) => {
+  await notifyNewUser(ctx, 'interacted');
+  await forwardAllMessagesToAdmin()(ctx);
+}); 
 
 // --- Vercel Export ---
 export const startVercel = async (req: VercelRequest, res: VercelResponse) => {
