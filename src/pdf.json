@@ -96,5 +96,13 @@
       { "label": "Disha 144 JEE Mains Physics", "key": "disha-144-jee-mains-physics" },
       { "label": "Disha 144 JEE Mains Chemistry", "key": "disha-144-jee-mains-chemistry" }
     ]
-  }
+  },
+  {
+  "title": "DCPANDEY",
+  "items": [
+    { "label": "DC Pandey Objective Full", "key": "dcpandey_objective_full" },
+    { "label": "DC Pandey Volume 1", "key": "dcpandey_volume1" },
+    { "label": "DC Pandey Volume 2", "key": "dcpandey_volume2" }
+  ]
+}
 ]
