@@ -1,5 +1,6 @@
-import { Context } from 'telegraf';
+import { TelegrafContext } from '../types';
 import { ADMIN_ID } from '../config';
+import { Context } from 'telegraf';
 
 // Cache for storing pending user replies
 const userPending = new Map<number, number>();
