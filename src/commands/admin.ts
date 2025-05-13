@@ -67,8 +67,8 @@ export const handleReplyCommand = () => async (ctx: Context) => {
 
   const replyTo = ctx.message.reply_to_message;
   
-  // Check if the replied message has a from field and text content
-  if (!('from' in replyTo) return ctx.reply('Cannot reply to this type of message.');
+  // Check if the replied message has a 'from' field and ensure it's not undefined
+  if (!('from' in replyTo) || !replyTo.from) return ctx.reply('Cannot reply to this type of message.');
   
   const replyText = 'text' in ctx.message ? ctx.message.text?.split(' ').slice(1).join(' ') : '';
   if (!replyText) return ctx.reply('Please provide a message to send.');
