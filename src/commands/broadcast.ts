@@ -1,6 +1,5 @@
-// broadcast.ts
 import { Context } from 'telegraf';
-import { fetchChatIdsFromSheet } from './utils/chatStore';
+import { fetchChatIdsFromSheet } from '../utils/chatStore';
 
 const ADMIN_ID = 6930703214;
 
@@ -18,6 +17,7 @@ export const setupBroadcast = (bot: any) => {
     try {
       const chatIds = await fetchChatIdsFromSheet();
       let sent = 0;
+
       for (const chatId of chatIds) {
         try {
           if (reply.text) {
