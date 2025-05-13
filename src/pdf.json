@@ -100,9 +100,9 @@
   {
   "title": "DCPANDEY",
   "items": [
-    { "label": "DC Pandey Objective Full", "key": "dcpandey_objective_full" },
-    { "label": "DC Pandey Volume 1", "key": "dcpandey_volume1" },
-    { "label": "DC Pandey Volume 2", "key": "dcpandey_volume2" }
+    { "label": "DC Pandey Objective Full", "key": "dcpandey-objective-full" },
+    { "label": "DC Pandey Volume 1", "key": "dcpandey-volume1" },
+    { "label": "DC Pandey Volume 2", "key": "dcpandey-volume2" }
   ]
 }
 ]
