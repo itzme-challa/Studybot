@@ -72,7 +72,7 @@ const greeting = () => async (ctx: Context) => {
 
     if (greetings.includes(text)) {
       await ctx.reply(
-        `Welcome ${user.first_name}! You have full access.\n\nUse /help to explore available commands and get started with your NEET Preparation!`,
+        `Welcome ${user.first_name}! You have full access.\n\nUse /help or /study to explore available commands and get started with your NEET Preparation!`,
         {
           parse_mode: 'Markdown',
         }
