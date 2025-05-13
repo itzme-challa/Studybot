@@ -158,5 +158,4 @@ await production(req, res, bot);
 
 if (ENVIRONMENT !== 'production') {
 development(bot);
-} give me separate for contact and it's reply function.. as commands/contact.ts ..also make sure that users can share even media..also make sure that admin can get even other messages as well of all users even(user not say contact) ..but specially when contact then make that as highlighted for admin..
-
+} 
