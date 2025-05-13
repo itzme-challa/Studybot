@@ -59,21 +59,18 @@ export const notifyNewUser = async (ctx: Context, type: 'start' | 'interacted') 
 
 export const handleReplyCommand = () => async (ctx: Context) => {
   if (!ctx.from || ctx.from.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-
   const msg = ctx.message;
+
   if (!msg || !('reply_to_message' in msg) || !msg.reply_to_message) {
     return ctx.reply('Reply to a user message.');
   }
 
   const text = msg.text?.split(' ');
-  const userId = text && text.length > 1 ? Number(text[1]) : undefined;
-  // Check if reply_to_message is a text message
+  const userId = Number(text?.[1]);
+  // Fix for Line 68: Check if reply_to_message has text property
   const replyText =
-    text && text.length > 2
-      ? text.slice(2).join(' ')
-      : 'text' in msg.reply_to_message
-      ? msg.reply_to_message.text
-      : '[Non-text message]';
+    text?.slice(2).join(' ') ||
+    ('text' in msg.reply_to_message ? msg.reply_to_message.text : '[Non-text message]');
 
   if (!userId || !replyText) return ctx.reply('Usage: /reply <user_id> <message>');
 
@@ -101,7 +98,7 @@ export const handleContactCommand = () => async (ctx: Context) => {
       );
       await ctx.reply('Your message has been sent to the admin.');
     } else if (reply) {
-      // Check if reply is a text message
+      // Fix for Line 93: Check if reply has text property
       const replyText = 'text' in reply ? reply.text : '[Non-text message]';
       await ctx.telegram.sendMessage(
         ADMIN_ID,
