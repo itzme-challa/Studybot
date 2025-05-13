@@ -85,7 +85,7 @@ const pdf = () => async (ctx: Context) => {
     }
   } catch (err) {
     console.error('PDF command handler error:', err);
-    await ctx.reply('An error occurred while fetching your file. Please contact with @NeetAspirantsBot and try again later.');
+    await ctx.reply('"An error occurred while fetching your file. Please contact @NeetAspirantsBot for assistance and try again later.');
   }
 };
 
