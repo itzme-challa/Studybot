@@ -2,7 +2,6 @@ import { Context } from 'telegraf';
 
 const ADMIN_ID = 6930703214;
 
-// /contact command
 export const contact = () => {
   return async (ctx: Context) => {
     if (!ctx.chat) {
@@ -12,29 +11,34 @@ export const contact = () => {
   };
 };
 
-// Handles all user messages (highlighting /contact-related ones)
 export const handleUserMessages = async (ctx: Context) => {
-  if (!ctx.chat) {
-    return; // Avoid further processing if there's no chat
-  }
+  if (!ctx.chat || !ctx.from) return;
 
-  const userMessage = ctx.message;
+  const message = ctx.message;
 
-  // Forwarding all user messages to admin
-  if (ctx.from?.id !== ADMIN_ID) {
-    await ctx.telegram.sendMessage(
-      ADMIN_ID,
-      `*User Message from ${ctx.from?.first_name} (@${ctx.from?.username || 'N/A'})*:\n${userMessage?.text || 'No text provided'}`,
-      { parse_mode: 'Markdown' }
-    );
-  }
+  // Forward to admin if not from admin
+  if (ctx.from.id !== ADMIN_ID) {
+    const name = ctx.from.first_name;
+    const username = ctx.from.username ?? 'N/A';
 
-  // Highlighting the contact messages
-  if (userMessage?.text?.toLowerCase() === 'contact') {
-    await ctx.telegram.sendMessage(
-      ADMIN_ID,
-      `*Urgent Contact from ${ctx.from?.first_name} (@${ctx.from?.username || 'N/A'})*:\n${userMessage?.text || 'No text provided'}`,
-      { parse_mode: 'Markdown' }
-    );
+    if ('text' in message) {
+      const content = message.text;
+      await ctx.telegram.sendMessage(
+        ADMIN_ID,
+        `*User Message from ${name} (@${username})*:\n${content}`,
+        { parse_mode: 'Markdown' }
+      );
+
+      if (content.toLowerCase().includes('contact')) {
+        await ctx.telegram.sendMessage(
+          ADMIN_ID,
+          `*Urgent Contact from ${name} (@${username})*:\n${content}`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+    } else {
+      // For non-text messages
+      await ctx.telegram.forwardMessage(ADMIN_ID, ctx.chat.id, message.message_id);
+    }
   }
 };
