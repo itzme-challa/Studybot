@@ -43,6 +43,9 @@ const messageMap: Record<string, number> = {
   'master-the-ncert-bio-12th': 38,
   'disha-144-jee-mains-physics': 39,
   'disha-144-jee-mains-chemistry': 40,
+  'DCPANDEY_OBJECTIVE_Full': 41,
+  'DCPANDEY_Volume1': 42,
+  'DCPANDEY_Volume2': 43,
 };
 
 const fileStorageChatId = -1002589507108;
