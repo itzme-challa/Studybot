@@ -9,7 +9,7 @@ import { greeting, checkMembership } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
-import { contact, handleUserMessages } from './commands/contact';
+import { contact, handleUserMessages, handleAdminReply } from './commands/contact';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -102,7 +102,12 @@ bot.start(async (ctx) => {
     const username = user?.username ? `@${user.username}` : 'N/A';
     await ctx.telegram.sendMessage(
       ADMIN_ID,
-      `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
+      `*New user started the bot!*
+
+*Name:* ${name}
+*Username:* ${username}
+*Chat ID:* ${chat.id}
+*Type:* ${chat.type}`,
       { parse_mode: 'Markdown' }
     );
   }
@@ -112,7 +117,6 @@ bot.start(async (ctx) => {
 bot.on('message', async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
-  // Save user to sheet
   const alreadyNotified = await saveToSheet(ctx.chat);
 
   if (ctx.chat.id !== ADMIN_ID && !alreadyNotified) {
@@ -121,13 +125,23 @@ bot.on('message', async (ctx) => {
     const username = user?.username ? `@${user.username}` : 'N/A';
     await ctx.telegram.sendMessage(
       ADMIN_ID,
-      `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${ctx.chat.id}\n*Type:* ${ctx.chat.type}`,
+      `*New user interacted!*
+
+*Name:* ${name}
+*Username:* ${username}
+*Chat ID:* ${ctx.chat.id}
+*Type:* ${ctx.chat.type}`,
       { parse_mode: 'Markdown' }
     );
   }
 
-  // Handle contact or other message
   await handleUserMessages(ctx);
+});
+
+// --- Admin /reply ---
+bot.command('reply', async (ctx) => {
+  if (ctx.from?.id !== ADMIN_ID) return;
+  await handleAdminReply(ctx);
 });
 
 // --- New Member Welcome ---
