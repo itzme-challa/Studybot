@@ -1,12 +1,11 @@
 import { Context } from 'telegraf';
 import { fetchChatIdsFromSheet } from '../utils/chatStore';
 import { saveToSheet } from '../utils/saveToSheet';
-import { Message } from 'telegraf/typings/core/types/typegram';
 
 const ADMIN_ID = 6930703214;
 
 export const handleUsersCommand = () => async (ctx: Context) => {
-  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
+  if (!ctx.from || ctx.from.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
   try {
     const chatIds = await fetchChatIdsFromSheet();
@@ -23,7 +22,7 @@ export const handleUsersCommand = () => async (ctx: Context) => {
 };
 
 export const handleRefreshUsersCallback = () => async (ctx: Context) => {
-  if (ctx.from?.id !== ADMIN_ID) return ctx.answerCbQuery('Unauthorized');
+  if (!ctx.from || ctx.from.id !== ADMIN_ID) return ctx.answerCbQuery('Unauthorized');
 
   try {
     const chatIds = await fetchChatIdsFromSheet();
@@ -42,13 +41,13 @@ export const handleRefreshUsersCallback = () => async (ctx: Context) => {
 export const notifyNewUser = async (ctx: Context, type: 'start' | 'interacted') => {
   const user = ctx.from;
   const chat = ctx.chat;
-  if (!chat || chat.id === ADMIN_ID) return;
+  if (!chat || !user || chat.id === ADMIN_ID) return;
 
   const alreadyNotified = await saveToSheet(chat);
   if (alreadyNotified) return;
 
-  const name = user?.first_name || 'Unknown';
-  const username = user?.username ? `@${user.username}` : 'N/A';
+  const name = user.first_name || 'Unknown';
+  const username = user.username ? `@${user.username}` : 'N/A';
   const header = type === 'start' ? '*New user started the bot!*' : '*New user interacted!*';
 
   await ctx.telegram.sendMessage(
@@ -59,18 +58,16 @@ export const notifyNewUser = async (ctx: Context, type: 'start' | 'interacted') 
 };
 
 export const handleReplyCommand = () => async (ctx: Context) => {
-  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
+  if (!ctx.from || ctx.from.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
+  const msg = ctx.message;
 
-  const message = ctx.message as Message.TextMessage | undefined;
-  const reply = message?.reply_to_message;
-
-  if (!reply || !('text' in reply)) {
+  if (!msg || !('reply_to_message' in msg) || !msg.reply_to_message) {
     return ctx.reply('Reply to a user message.');
   }
 
-  const parts = message.text.split(' ');
-  const userId = Number(parts[1]);
-  const replyText = parts.slice(2).join(' ') || reply.text;
+  const text = msg.text?.split(' ');
+  const userId = Number(text?.[1]);
+  const replyText = text?.slice(2).join(' ') || (msg.reply_to_message as any).text;
 
   if (!userId || !replyText) return ctx.reply('Usage: /reply <user_id> <message>');
 
@@ -85,14 +82,10 @@ export const handleReplyCommand = () => async (ctx: Context) => {
 
 export const handleContactCommand = () => async (ctx: Context) => {
   const user = ctx.from;
-  const msg = ctx.message;
-  if (!user || !msg) return;
+  if (!user) return;
 
-  const isTextMessage = 'text' in msg;
-  const isReply = 'reply_to_message' in msg;
-
-  const text = isTextMessage ? msg.text?.split(' ').slice(1).join(' ') : undefined;
-  const reply = isReply ? msg.reply_to_message : undefined;
+  const text = ctx.message?.text?.split(' ').slice(1).join(' ');
+  const reply = ctx.message && 'reply_to_message' in ctx.message ? ctx.message.reply_to_message : undefined;
 
   try {
     if (text) {
@@ -101,10 +94,11 @@ export const handleContactCommand = () => async (ctx: Context) => {
         `#help\nFrom: ${user.first_name} (@${user.username || 'N/A'})\nID: ${user.id}\nMessage: ${text}`
       );
       await ctx.reply('Your message has been sent to the admin.');
-    } else if (reply && 'text' in reply) {
+    } else if (reply) {
+      const replyText = (reply as any).text || '[Non-text message]';
       await ctx.telegram.sendMessage(
         ADMIN_ID,
-        `#help\nFrom: ${user.first_name} (@${user.username || 'N/A'})\nID: ${user.id}\nReplied Message: ${reply.text}`
+        `#help\nFrom: ${user.first_name} (@${user.username || 'N/A'})\nID: ${user.id}\nReplied Message: ${replyText}`
       );
       await ctx.reply('Your replied message has been sent to the admin.');
     } else {
@@ -116,14 +110,15 @@ export const handleContactCommand = () => async (ctx: Context) => {
   }
 };
 
+// Forward all user messages to admin
 export const forwardAllMessagesToAdmin = () => async (ctx: Context) => {
-  if (ctx.from?.id === ADMIN_ID || !ctx.message || !ctx.chat) return;
+  if (!ctx.from || ctx.from.id === ADMIN_ID || !ctx.message) return;
 
   try {
     const name = ctx.from.first_name || 'Unknown';
     const username = ctx.from.username ? `@${ctx.from.username}` : 'N/A';
 
-    await ctx.telegram.forwardMessage(ADMIN_ID, ctx.chat.id, ctx.message.message_id);
+    await ctx.telegram.forwardMessage(ADMIN_ID, ctx.chat?.id!, ctx.message.message_id);
     await ctx.telegram.sendMessage(
       ADMIN_ID,
       `From: ${name} (${username})\nUserID: ${ctx.from.id}`
