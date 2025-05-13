@@ -38,7 +38,7 @@ const checkMembership = async (ctx: Context): Promise<boolean> => {
 
       await ctx.telegram.sendMessage(
         user.id,
-        `Hello ${user.first_name},\n\nTo use this bot, please join the following required channel(s)/group(s):\n\n${missing.join('\n')}\n\nThen send /start again.`,
+        `Hello ${user.first_name},\n\nTo use this bot, please join the following required channel and group:\n\n${missing.join('\n')}\n\nThen send /start again.`,
         {
           parse_mode: 'Markdown',
           disable_web_page_preview: true,
