@@ -57,30 +57,50 @@ export const notifyNewUser = async (ctx: Context, type: 'start' | 'interacted') 
   );
 };
 
-// Optional: Admin-only /reply and /contact commands (basic version)
 export const handleReplyCommand = () => async (ctx: Context) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
-  const replyTo = ctx.message?.reply_to_message; // Optional chaining to avoid undefined errors
-  if (!replyTo || !replyTo.from?.id) return ctx.reply('Reply to a user message.');
+  // Check if the message exists and is a text message with reply
+  if (!ctx.message || !('reply_to_message' in ctx.message) || !ctx.message.reply_to_message) {
+    return ctx.reply('Reply to a user message.');
+  }
 
-  const replyText = ctx.message?.text?.split(' ').slice(1).join(' ') || '';
-  await ctx.telegram.sendMessage(replyTo.from.id, replyText);
+  const replyTo = ctx.message.reply_to_message;
+  
+  // Check if the replied message has a from field and text content
+  if (!('from' in replyTo) return ctx.reply('Cannot reply to this type of message.');
+  
+  const replyText = 'text' in ctx.message ? ctx.message.text?.split(' ').slice(1).join(' ') : '';
+  if (!replyText) return ctx.reply('Please provide a message to send.');
+
+  try {
+    await ctx.telegram.sendMessage(replyTo.from.id, replyText);
+    await ctx.reply('Message sent.');
+  } catch (err) {
+    console.error('Error sending reply:', err);
+    await ctx.reply('Failed to send message.');
+  }
 };
 
 export const handleContactCommand = () => async (ctx: Context) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
   
-  const parts = ctx.message?.text?.split(' '); // Optional chaining here as well
-  const chatId = Number(parts?.[1]);
-  const msg = parts?.slice(2).join(' ');
+  // Check if the message exists and has text
+  if (!ctx.message || !('text' in ctx.message)) {
+    return ctx.reply('Invalid command format.');
+  }
+
+  const parts = ctx.message.text.split(' ');
+  const chatId = Number(parts[1]);
+  const msg = parts.slice(2).join(' ');
 
   if (!chatId || !msg) return ctx.reply('Usage: /contact <chat_id> <message>');
 
   try {
     await ctx.telegram.sendMessage(chatId, msg);
-    ctx.reply('Message sent.');
-  } catch {
-    ctx.reply('Failed to send message.');
+    await ctx.reply('Message sent.');
+  } catch (err) {
+    console.error('Error sending contact message:', err);
+    await ctx.reply('Failed to send message.');
   }
 };
