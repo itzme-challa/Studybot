@@ -1,13 +1,13 @@
 import { Context } from 'telegraf';
 import createDebug from 'debug';
-
 import { author, name, version } from '../../package.json';
 
 const debug = createDebug('bot:about_command');
 
 const about = () => async (ctx: Context) => {
-  const message = `*${name} ${version}*\n\n` +
-    `*Author:* ${author}\n\n` +
+  const message =
+    `*${escape(name)} ${escape(version)}*\n\n` +
+    `*Author:* ${escape(author)}\n\n` +
     `This bot is designed to provide helpful resources and tools for students preparing for *NEET*, *JEE*, and other competitive exams\\.\n\n` +
     `*Features include:*\n` +
     `\\- Access to study materials for *NEET* and *JEE*\n` +
@@ -18,7 +18,12 @@ const about = () => async (ctx: Context) => {
 
   debug(`Triggered "about" command with message \n${message}`);
 
-  await ctx.replyWithMarkdownV2(message);
+  await ctx.reply(message, { parse_mode: 'MarkdownV2' });
 };
+
+// Escape special characters for MarkdownV2
+function escape(text: string): string {
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, '\\$&');
+}
 
 export { about };
