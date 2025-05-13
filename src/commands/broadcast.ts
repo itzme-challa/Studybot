@@ -9,7 +9,9 @@ export const setupBroadcast = (bot: any) => {
       return ctx.reply('❌ You are not authorized to use this command.');
     }
 
-    const reply = ctx.message?.reply_to_message;
+    const message = ctx.message as any; // Add this line to bypass the type check
+    const reply = message?.reply_to_message;
+
     if (!reply) {
       return ctx.reply('⚠️ Please reply to the message (text/media) you want to broadcast using /broadcast.');
     }
