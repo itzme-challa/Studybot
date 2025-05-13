@@ -9,6 +9,7 @@ import { greeting, checkMembership } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
+import { contact, handleUserMessages } from './commands/contact';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -29,12 +30,12 @@ bot.use(async (ctx, next) => {
 // --- Commands ---
 bot.command('about', about());
 
-// Multiple triggers for help/material/pdf content
 const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
 helpTriggers.forEach(trigger => bot.command(trigger, help()));
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 
-// Admin: /users
+bot.command('contact', contact());
+
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
@@ -52,7 +53,6 @@ bot.command('users', async (ctx) => {
   }
 });
 
-// Admin: /broadcast
 setupBroadcast(bot);
 
 // --- Callback Handler ---
@@ -108,35 +108,13 @@ bot.start(async (ctx) => {
   }
 });
 
-// --- Text Handler ---
-bot.on('text', async (ctx) => {
-  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
-
-  const text = ctx.message.text?.toLowerCase();
-  if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
-    await help()(ctx);
-  } else {
-    await greeting()(ctx);
-    await pdf()(ctx);
-  }
-});
-
-// --- New Member Welcome (Group) ---
-bot.on('new_chat_members', async (ctx) => {
-  for (const member of ctx.message.new_chat_members) {
-    if (member.username === ctx.botInfo.username) {
-      await ctx.reply('Thanks for adding me! Type /help to get started.');
-    }
-  }
-});
-
-// --- Message Tracker for Private Chats ---
+// --- Text/Media Handler (General + Contact) ---
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
   if (!chat?.id || !isPrivateChat(chat.type)) return;
 
+  // Save user to sheet
   const alreadyNotified = await saveToSheet(chat);
-  console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
 
   if (chat.id !== ADMIN_ID && !alreadyNotified) {
     const user = ctx.from;
@@ -147,6 +125,18 @@ bot.on('message', async (ctx) => {
       `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
       { parse_mode: 'Markdown' }
     );
+  }
+
+  // Handle contact or other message
+  await handleUserMessages(ctx);
+});
+
+// --- New Member Welcome ---
+bot.on('new_chat_members', async (ctx) => {
+  for (const member of ctx.message.new_chat_members) {
+    if (member.username === ctx.botInfo.username) {
+      await ctx.reply('Thanks for adding me! Type /help to get started.');
+    }
   }
 });
 
