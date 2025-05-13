@@ -28,13 +28,13 @@ const checkMembership = async (ctx: Context): Promise<boolean> => {
 
     if (!inChannel || !inGroup) {
       await ctx.telegram.sendMessage(
-        user.id,
-        `Hello ${user.first_name},\n\nTo use this bot, please join all the required channels first:\n\n👉 [Join Channel](${channelId})\n👉 [Join Group](${groupLink})\n\nThen send /start again.`,
-        {
-          parse_mode: 'Markdown',
-          disable_web_page_preview: true,
-        } as any
-      );
+  user.id,
+  `Hello ${user.first_name},\n\nTo use this bot, please join all the required channels first:\n\n👉 [Join Channel](https://t.me/NEETUG_26)\n👉 [Join Group](https://t.me/neetpw01)\n\nThen send /start again.`,
+  {
+    parse_mode: 'Markdown',
+    disable_web_page_preview: true,
+  } as any
+);
       return false;
     }
 
