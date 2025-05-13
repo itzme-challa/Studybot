@@ -42,9 +42,10 @@ bot.command('contact', handleContactCommand());
 
 // --- Callback Handler ---
 bot.on('callback_query', async (ctx) => {
-  const data = ctx.callbackQuery?.data;
-  if (!data) return ctx.answerCbQuery('Unsupported callback type');
+  const callbackQuery = ctx.callbackQuery;
+  if (!callbackQuery || !callbackQuery.data) return ctx.answerCbQuery('Unsupported callback type');
 
+  const data = callbackQuery.data;
   if (data.startsWith('help_page_')) return handleHelpPagination()(ctx);
   if (data === 'refresh_users') return handleRefreshUsersCallback()(ctx);
 
@@ -62,7 +63,7 @@ bot.start(async (ctx) => {
 // --- Text Handler ---
 bot.on('text', async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
-  const text = ctx.message.text?.toLowerCase();
+  const text = ctx.message?.text?.toLowerCase(); // Optional chaining for text
   if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
     return help()(ctx);
   }
