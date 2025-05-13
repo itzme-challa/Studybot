@@ -1,12 +1,55 @@
 import { Context } from 'telegraf';
 import createDebug from 'debug';
 
-const debug = createDebug('bot:greeting_text');
+const debug = createDebug('bot:greeting_check');
 
+// Define the required channels/groups
+const channelId = '@NEETUG_26';
+const groupLink = '@neetpw01';
+
+// Middleware to verify user membership
+const checkMembership = async (ctx: Context): Promise<boolean> => {
+  try {
+    const user = ctx.from;
+    if (!user) return false;
+
+    const check = async (chatId: string) => {
+      try {
+        const member = await ctx.telegram.getChatMember(chatId, user.id);
+        return !['left', 'kicked'].includes(member.status);
+      } catch (err) {
+        console.error(`Error checking membership in ${chatId}:`, err);
+        return false;
+      }
+    };
+
+    const inChannel = await check(channelId);
+    const inGroup = await check(groupLink);
+
+    if (!inChannel || !inGroup) {
+      await ctx.telegram.sendMessage(
+        user.id,
+        `Hello ${user.first_name},\n\nTo use this bot, please join all the required channels first:\n\n👉 [Join Channel](${channelId})\n👉 [Join Group](${groupLink})\n\nThen send /start again.`,
+        {
+          parse_mode: 'Markdown',
+          disable_web_page_preview: true,
+        } as any
+      );
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Membership verification error:', err);
+    await ctx.reply('❌ Unable to verify your membership. Please try again later.');
+    return false;
+  }
+};
+
+// Optional: greeting response when matched
 const greeting = () => async (ctx: Context) => {
   try {
-    debug('Triggered "greeting" text command');
-
+    debug('Triggered "greeting" handler');
     const message = ctx.message;
     if (!message || !('text' in message)) return;
 
@@ -14,30 +57,6 @@ const greeting = () => async (ctx: Context) => {
     const user = ctx.from;
     if (!user) return;
 
-    const channelId = '@NEETUG_26';
-    const groupLink = '@neetpw01';
-
-    // Check if user has joined the required channel
-    try {
-      const member = await ctx.telegram.getChatMember(channelId, user.id);
-      if (['left', 'kicked'].includes(member.status)) {
-        await ctx.telegram.sendMessage(
-          user.id,
-          `Hello ${user.first_name},\n\nTo use this bot, please join all the required channels first:\n\n👉 [Join @NEETUG_26](https://t.me/NEETUG_26)\n👉 [Join Group ${groupLink}](https://t.me/${groupLink.replace('@', '')})\n\nThen send /start again.`,
-          {
-            parse_mode: 'Markdown',
-            disable_web_page_preview: true,
-          } as any
-        );
-        return;
-      }
-    } catch (err) {
-      console.error('Error checking channel membership:', err);
-      await ctx.reply('Unable to verify your membership. Please try again later.');
-      return;
-    }
-
-    // If the user has access, respond with welcome message on /start or greetings
     const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
     if (greetings.includes(text)) {
       await ctx.reply(
@@ -47,10 +66,9 @@ const greeting = () => async (ctx: Context) => {
         }
       );
     }
-
   } catch (err) {
-    console.error('Greeting handler error:', err);
+    console.error('Greeting logic error:', err);
   }
 };
 
-export { greeting };
+export { greeting, checkMembership };
