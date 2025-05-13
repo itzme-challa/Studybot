@@ -8,6 +8,7 @@ import { pdf } from './commands/pdf';
 import { greeting } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
+import { checkMembership } from './text/greeting';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -17,7 +18,11 @@ if (!BOT_TOKEN) throw new Error('BOT_TOKEN not provided!');
 console.log(`Running bot in ${ENVIRONMENT} mode`);
 
 const bot = new Telegraf(BOT_TOKEN);
-
+bot.use(async (ctx, next) => {
+  const isAllowed = await checkMembership(ctx);
+  if (isAllowed) await next();
+});
+ 
 // --- COMMANDS ---
 bot.command('about', about());
 bot.command('help', help());
