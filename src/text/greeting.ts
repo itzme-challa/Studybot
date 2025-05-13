@@ -7,12 +7,16 @@ const debug = createDebug('bot:greeting_check');
 const channelId = '@NEETUG_26';
 const groupLink = '@neetpw01';
 
-// Middleware to verify user membership
+// Middleware to verify user membership (only in private chats)
 const checkMembership = async (ctx: Context): Promise<boolean> => {
   try {
     const user = ctx.from;
-    if (!user) return false;
+    const chat = ctx.chat;
 
+    // Only allow in private chats
+    if (!user || !chat || chat.type !== 'private') return false;
+
+    // Function to check membership
     const check = async (chatId: string) => {
       try {
         const member = await ctx.telegram.getChatMember(chatId, user.id);
@@ -26,15 +30,20 @@ const checkMembership = async (ctx: Context): Promise<boolean> => {
     const inChannel = await check(channelId);
     const inGroup = await check(groupLink);
 
+    // If user isn't in both, send only missing links
     if (!inChannel || !inGroup) {
+      const missing = [];
+      if (!inChannel) missing.push(`👉 [Join Channel](https://t.me/${channelId.replace('@', '')})`);
+      if (!inGroup) missing.push(`👉 [Join Group](https://t.me/${groupLink.replace('@', '')})`);
+
       await ctx.telegram.sendMessage(
-  user.id,
-  `Hello ${user.first_name},\n\nTo use this bot, please join all the required channels first:\n\n👉 [Join Channel](https://t.me/NEETUG_26)\n👉 [Join Group](https://t.me/neetpw01)\n\nThen send /start again.`,
-  {
-    parse_mode: 'Markdown',
-    disable_web_page_preview: true,
-  } as any
-);
+        user.id,
+        `Hello ${user.first_name},\n\nTo use this bot, please join the following required channel(s)/group(s):\n\n${missing.join('\n')}\n\nThen send /start again.`,
+        {
+          parse_mode: 'Markdown',
+          disable_web_page_preview: true,
+        } as any
+      );
       return false;
     }
 
@@ -46,18 +55,21 @@ const checkMembership = async (ctx: Context): Promise<boolean> => {
   }
 };
 
-// Optional: greeting response when matched
+// Greeting handler (only for private chats + after membership check)
 const greeting = () => async (ctx: Context) => {
   try {
     debug('Triggered "greeting" handler');
     const message = ctx.message;
-    if (!message || !('text' in message)) return;
+    const chat = ctx.chat;
+    const user = ctx.from;
+
+    if (!chat || chat.type !== 'private' || !message || !user || !('text' in message)) return;
 
     const text = message.text.trim().toLowerCase();
-    const user = ctx.from;
-    if (!user) return;
-
     const greetings = ['hi', 'hello', 'hey', 'hii', 'heyy', 'hola', 'start', '/start'];
+
+    if (!(await checkMembership(ctx))) return;
+
     if (greetings.includes(text)) {
       await ctx.reply(
         `Welcome ${user.first_name}! You have full access.\n\nUse /help to explore available commands and get started with your NEET Preparation!`,
