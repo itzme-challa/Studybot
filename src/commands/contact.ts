@@ -28,24 +28,33 @@ export const setupContactForwarding = (bot: Telegraf) => {
 
 // Admin can reply to a user using: /reply <user_id> <message>
   bot.command('reply', async (ctx) => {
-    if (ctx.from?.id !== ADMIN_ID) return;
+  if (ctx.from?.id !== ADMIN_ID) return;
 
-    const text = ctx.message.text;
-    const match = text.match(/^\/reply\s+(\d+)\s+([\s\S]+)/);
+  const text = ctx.message?.text;
 
-    if (!match) {
-      return ctx.reply('Usage: /reply <user_id> <message>');
-    }
+  if (!text) {
+    return ctx.reply('❌ Invalid command. Usage:\n/reply <user_id> <message>');
+  }
 
-    const userId = Number(match[1]);
-    const message = match[2];
+  const match = text.match(/^\/reply\s+(\d+)\s+([\s\S]+)/);
 
-    try {
-      await ctx.telegram.sendMessage(userId, message, { parse_mode: 'Markdown' });
-      await ctx.reply('✅ Message sent to user.');
-    } catch (err) {
-      console.error('Failed to send reply:', err);
-      await ctx.reply('❌ Failed to send message. User may have blocked the bot or an error occurred.');
-    }
-  });
+  if (!match) {
+    return ctx.reply('❌ Invalid format. Usage:\n/reply <user_id> <message>');
+  }
+
+  const userId = Number(match[1]);
+  const replyMessage = match[2].trim();
+
+  if (!replyMessage) {
+    return ctx.reply('❌ Message is empty.');
+  }
+
+  try {
+    await ctx.telegram.sendMessage(userId, replyMessage, { parse_mode: 'Markdown' });
+    await ctx.reply(`✅ Message sent to user ID: ${userId}`);
+  } catch (err) {
+    console.error('Error sending reply to user:', err);
+    await ctx.reply('❌ Failed to send message. User may have blocked the bot or never started it.');
+  }
+});
 };
