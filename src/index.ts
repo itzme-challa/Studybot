@@ -10,6 +10,7 @@ import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
 import { setupAdminCommands } from './commands/admin';
+import { setupContactForwarding } from './commands/contact';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -38,6 +39,7 @@ bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 // Admin commands & broadcast setup
 setupAdminCommands(bot);
 setupBroadcast(bot);
+setupContactForwarding(bot);
 
 // --- Callback handler ---
 bot.on('callback_query', async (ctx) => {
