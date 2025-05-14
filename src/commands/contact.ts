@@ -47,43 +47,44 @@ export const setupContactForwarding = (bot: Telegraf<Context>) => {
 
   // Forward media from admin with caption: /reply <user_id>
   bot.on('message', async (ctx) => {
-    if (ctx.from?.id !== ADMIN_ID || !ctx.message.caption?.startsWith('/reply ')) return;
+  if (ctx.from?.id !== ADMIN_ID || !ctx.message.caption?.startsWith('/reply ')) return;
 
-    const parts = ctx.message.caption.split(' ');
-    if (parts.length < 2) return;
+  const parts = ctx.message.caption.split(' ');
+  if (parts.length < 2) return;
 
-    const userId = parseInt(parts[1]);
-    if (isNaN(userId)) return;
+  const userId = parseInt(parts[1]);
+  if (isNaN(userId)) return;
 
-    try {
-      const msg = ctx.message as Message;
+  try {
+    const msg = ctx.message as Message;  // Type assertion
 
-      if ('photo' in msg) {
-        await ctx.telegram.sendPhoto(userId, msg.photo[msg.photo.length - 1].file_id, {
-          caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
-        });
-      } else if ('video' in msg) {
-        await ctx.telegram.sendVideo(userId, msg.video.file_id, {
-          caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
-        });
-      } else if ('document' in msg) {
-        await ctx.telegram.sendDocument(userId, msg.document.file_id, {
-          caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
-        });
-      } else if ('audio' in msg) {
-        await ctx.telegram.sendAudio(userId, msg.audio.file_id, {
-          caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
-        });
-      } else if ('voice' in msg) {
-        await ctx.telegram.sendVoice(userId, msg.voice.file_id);
-      } else {
-        await ctx.reply('Unsupported media type.');
-      }
-
-      await ctx.reply('Media sent.');
-    } catch (err) {
-      console.error('Failed to forward media reply:', err);
-      await ctx.reply('Failed to send media.');
+    // Check if the message contains media with a caption
+    if ('photo' in msg && msg.photo) {
+      await ctx.telegram.sendPhoto(userId, msg.photo[msg.photo.length - 1].file_id, {
+        caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
+      });
+    } else if ('video' in msg && msg.video) {
+      await ctx.telegram.sendVideo(userId, msg.video.file_id, {
+        caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
+      });
+    } else if ('document' in msg && msg.document) {
+      await ctx.telegram.sendDocument(userId, msg.document.file_id, {
+        caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
+      });
+    } else if ('audio' in msg && msg.audio) {
+      await ctx.telegram.sendAudio(userId, msg.audio.file_id, {
+        caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
+      });
+    } else if ('voice' in msg && msg.voice) {
+      await ctx.telegram.sendVoice(userId, msg.voice.file_id);
+    } else {
+      await ctx.reply('Unsupported media type.');
     }
-  });
+
+    await ctx.reply('Media sent.');
+  } catch (err) {
+    console.error('Failed to forward media reply:', err);
+    await ctx.reply('Failed to send media.');
+  }
+});
 };
