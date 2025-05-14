@@ -21,7 +21,7 @@ console.log(`Running bot in ${ENVIRONMENT} mode`);
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// --- Middleware: Only allow private chat + group members ---
+// --- Middleware: Allow only private chat + group members ---
 bot.use(async (ctx, next) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
   const isAllowed = await checkMembership(ctx);
@@ -36,12 +36,12 @@ const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
 helpTriggers.forEach(trigger => bot.command(trigger, help()));
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 
-// Admin commands & broadcast setup
+// Admin features
 setupAdminCommands(bot);
 setupBroadcast(bot);
 setupContactForwarding(bot);
 
-// --- Callback handler ---
+// --- Callback handler (for pagination or future inline actions) ---
 bot.on('callback_query', async (ctx) => {
   const callback = ctx.callbackQuery;
   if ('data' in callback && callback.data.startsWith('help_page_')) {
@@ -88,7 +88,7 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// --- Group: Welcome new members ---
+// --- Group: Bot added to group ---
 bot.on('new_chat_members', async (ctx) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
@@ -122,7 +122,7 @@ export const startVercel = async (req: VercelRequest, res: VercelResponse) => {
   await production(req, res, bot);
 };
 
-// --- Local development ---
+// --- Local dev mode ---
 if (ENVIRONMENT !== 'production') {
   development(bot);
 }
