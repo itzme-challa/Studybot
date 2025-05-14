@@ -9,6 +9,7 @@ import { greeting, checkMembership } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
+import { setupContactForwarding } from './commands/contact';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -54,6 +55,7 @@ bot.command('users', async (ctx) => {
 
 // Admin: /broadcast
 setupBroadcast(bot);
+setupContactForwarding(bot);
 
 // --- Callback Handler ---
 bot.on('callback_query', async (ctx) => {
