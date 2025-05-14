@@ -1,7 +1,7 @@
 import { Telegraf } from 'telegraf';
 import { VercelRequest, VercelResponse } from '@vercel/node';
+
 import { saveToSheet } from './utils/saveToSheet';
-import { fetchChatIdsFromSheet } from './utils/chatStore';
 import { about } from './commands/about';
 import { help, handleHelpPagination } from './commands/help';
 import { pdf } from './commands/pdf';
@@ -9,6 +9,7 @@ import { greeting, checkMembership } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
+import { setupAdminCommands } from './commands/admin';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -19,7 +20,7 @@ console.log(`Running bot in ${ENVIRONMENT} mode`);
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// Restrict to private chats & members only
+// --- Middleware: Only allow private chat + group members ---
 bot.use(async (ctx, next) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
   const isAllowed = await checkMembership(ctx);
@@ -29,62 +30,26 @@ bot.use(async (ctx, next) => {
 // --- Commands ---
 bot.command('about', about());
 
-// Multiple triggers for help/material/pdf content
+// Help command aliases
 const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
 helpTriggers.forEach(trigger => bot.command(trigger, help()));
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 
-// Admin: /users
-bot.command('users', async (ctx) => {
-  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-
-  try {
-    const chatIds = await fetchChatIdsFromSheet();
-    await ctx.reply(`📊 Total users: ${chatIds.length}`, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
-      },
-    });
-  } catch (err) {
-    console.error('Error fetching user count:', err);
-    await ctx.reply('❌ Unable to fetch user count.');
-  }
-});
-
-// Admin: /broadcast
+// Admin commands & broadcast setup
+setupAdminCommands(bot);
 setupBroadcast(bot);
 
-// --- Callback Handler ---
+// --- Callback handler ---
 bot.on('callback_query', async (ctx) => {
   const callback = ctx.callbackQuery;
-  if ('data' in callback) {
-    const data = callback.data;
-
-    if (data.startsWith('help_page_')) {
-      await handleHelpPagination()(ctx);
-    } else if (data === 'refresh_users' && ctx.from?.id === ADMIN_ID) {
-      try {
-        const chatIds = await fetchChatIdsFromSheet();
-        await ctx.editMessageText(`📊 Total users: ${chatIds.length}`, {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
-          },
-        });
-      } catch (err) {
-        console.error('Error refreshing users:', err);
-        await ctx.answerCbQuery('Failed to refresh.');
-      }
-    } else {
-      await ctx.answerCbQuery('Unknown action');
-    }
+  if ('data' in callback && callback.data.startsWith('help_page_')) {
+    await handleHelpPagination()(ctx);
   } else {
-    await ctx.answerCbQuery('Unsupported callback type');
+    await ctx.answerCbQuery('Unknown or unauthorized action');
   }
 });
 
-// --- /start ---
+// --- /start handler ---
 bot.start(async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
@@ -108,12 +73,12 @@ bot.start(async (ctx) => {
   }
 });
 
-// --- Text Handler ---
+// --- General text handler ---
 bot.on('text', async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
   const text = ctx.message.text?.toLowerCase();
-  if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
+  if (helpTriggers.includes(text)) {
     await help()(ctx);
   } else {
     await greeting()(ctx);
@@ -121,7 +86,7 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// --- New Member Welcome (Group) ---
+// --- Group: Welcome new members ---
 bot.on('new_chat_members', async (ctx) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
@@ -130,7 +95,7 @@ bot.on('new_chat_members', async (ctx) => {
   }
 });
 
-// --- Message Tracker for Private Chats ---
+// --- Private message tracker ---
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
   if (!chat?.id || !isPrivateChat(chat.type)) return;
@@ -150,11 +115,12 @@ bot.on('message', async (ctx) => {
   }
 });
 
-// --- Vercel Export ---
+// --- Vercel entry point ---
 export const startVercel = async (req: VercelRequest, res: VercelResponse) => {
   await production(req, res, bot);
 };
 
+// --- Local development ---
 if (ENVIRONMENT !== 'production') {
   development(bot);
 }
