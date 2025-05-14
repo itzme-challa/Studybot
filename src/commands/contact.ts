@@ -26,28 +26,26 @@ export const setupContactForwarding = (bot: Telegraf) => {
     }
   });
 
-  // Admin can reply to a user using: /reply <user_id> <message>
+// Admin can reply to a user using: /reply <user_id> <message>
   bot.command('reply', async (ctx) => {
     if (ctx.from?.id !== ADMIN_ID) return;
 
-    const parts = ctx.message.text.split(' ');
-    if (parts.length < 3) {
+    const text = ctx.message.text;
+    const match = text.match(/^\/reply\s+(\d+)\s+([\s\S]+)/);
+
+    if (!match) {
       return ctx.reply('Usage: /reply <user_id> <message>');
     }
 
-    const userId = Number(parts[1]);
-    const message = parts.slice(2).join(' ');
-
-    if (isNaN(userId)) {
-      return ctx.reply('Invalid user ID.');
-    }
+    const userId = Number(match[1]);
+    const message = match[2];
 
     try {
-      await ctx.telegram.sendMessage(userId, message);
+      await ctx.telegram.sendMessage(userId, message, { parse_mode: 'Markdown' });
       await ctx.reply('✅ Message sent to user.');
     } catch (err) {
       console.error('Failed to send reply:', err);
-      await ctx.reply('❌ Failed to send message. User may have blocked the bot.');
+      await ctx.reply('❌ Failed to send message. User may have blocked the bot or an error occurred.');
     }
   });
 };
