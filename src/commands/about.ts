@@ -22,9 +22,15 @@ const about = () => async (ctx: Context) => {
 
     // Send the about message
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
-  } catch (error) {
-    debug(`Error sending about message: ${error.message}`);
-    await ctx.reply('Sorry, there was an error processing your request.');
+  } catch (error: unknown) {
+    // Type assertion to 'Error' type
+    if (error instanceof Error) {
+      debug(`Error sending about message: ${error.message}`);
+      await ctx.reply('Sorry, there was an error processing your request.');
+    } else {
+      debug('Unknown error occurred in about command');
+      await ctx.reply('Sorry, there was an unexpected error.');
+    }
   }
 };
 
