@@ -141,12 +141,15 @@ bot.on('message', async (ctx) => {
   // Forward all messages to admin (except from admin)
   if (chat.id !== ADMIN_ID) {
     try {
-      await ctx.forwardMessage(ADMIN_ID, chat.id, ctx.message.message_id);
-    } catch (err) {
+      await ctx.telegram.forwardMessage(ADMIN_ID, {
+        from_chat_id: chat.id,
+        message_id: ctx.message.message_id,
+      });
+    } catch (err: any) {
       console.error('Error forwarding message to admin:', err);
       await ctx.telegram.sendMessage(
         ADMIN_ID,
-        `❌ Failed to forward message from chat ID ${chat.id}\nError: ${err.message}`,
+        `❌ Failed to forward message from chat ID ${chat.id}\nError: ${err.message || 'Unknown error'}`,
         { parse_mode: 'Markdown' }
       );
     }
