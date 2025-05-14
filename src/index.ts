@@ -19,7 +19,7 @@ console.log(`Running bot in ${ENVIRONMENT} mode`);
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// Middleware: Restrict to private chats & members only
+// Restrict to private chats & members only
 bot.use(async (ctx, next) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
   const isAllowed = await checkMembership(ctx);
@@ -36,9 +36,7 @@ bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 
 // Admin: /users
 bot.command('users', async (ctx) => {
-  if (ctx.from?.id !== ADMIN_ID) {
-    return ctx.reply('You are not authorized.');
-  }
+  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
   try {
     const chatIds = await fetchChatIdsFromSheet();
@@ -74,7 +72,6 @@ bot.on('callback_query', async (ctx) => {
             inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
           },
         });
-        await ctx.answerCbQuery('Refreshed user count.');
       } catch (err) {
         console.error('Error refreshing users:', err);
         await ctx.answerCbQuery('Failed to refresh.');
@@ -133,33 +130,14 @@ bot.on('new_chat_members', async (ctx) => {
   }
 });
 
-// --- Message Handler for Forwarding and Tracking ---
+// --- Message Tracker for Private Chats ---
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
   if (!chat?.id || !isPrivateChat(chat.type)) return;
 
-  // Forward all messages to admin (except from admin)
-  if (chat.id !== ADMIN_ID) {
-    try {
-      await ctx.telegram.forwardMessage(ADMIN_ID, {
-        from_chat_id: chat.id,
-        message_id: ctx.message.message_id,
-      });
-    } catch (err: any) {
-      console.error('Error forwarding message to admin:', err);
-      await ctx.telegram.sendMessage(
-        ADMIN_ID,
-        `❌ Failed to forward message from chat ID ${chat.id}\nError: ${err.message || 'Unknown error'}`,
-        { parse_mode: 'Markdown' }
-      );
-    }
-  }
-
-  // Save chat ID to sheet
   const alreadyNotified = await saveToSheet(chat);
   console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
 
-  // Notify admin about new user interaction (if not already notified)
   if (chat.id !== ADMIN_ID && !alreadyNotified) {
     const user = ctx.from;
     const name = user?.first_name || 'Unknown';
