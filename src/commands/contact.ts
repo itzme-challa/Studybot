@@ -3,8 +3,8 @@ import { Message } from 'telegraf/typings/core/types/typegram';
 
 const ADMIN_ID = 6930703214;
 
-export const setupContactForwarding = (bot: Telegraf) => {
-  // Forward all private messages to admin (excluding admin's own)
+export const setupContactForwarding = (bot: Telegraf<Context>) => {
+  // Forward private messages to admin (except from admin)
   bot.on('message', async (ctx) => {
     const user = ctx.from;
     const chat = ctx.chat;
@@ -17,66 +17,73 @@ export const setupContactForwarding = (bot: Telegraf) => {
     const header = `*User Message*\n\n*Name:* ${name}\n*Username:* ${username}\n*User ID:* ${chat.id}`;
 
     try {
-      // Forward message
       await ctx.telegram.forwardMessage(ADMIN_ID, chat.id, ctx.message.message_id);
-      // Send user info
       await ctx.telegram.sendMessage(ADMIN_ID, header, { parse_mode: 'Markdown' });
     } catch (err) {
       console.error('Failed to forward message to admin:', err);
     }
   });
 
-// Admin can reply to a user using: /reply <user_id> <message>
+  // Handle /reply <user_id> <message> from admin (text only)
   bot.command('reply', async (ctx) => {
-  if (ctx.from?.id !== ADMIN_ID) return;
+    if (ctx.from?.id !== ADMIN_ID) return;
 
-  const text = ctx.message?.text;
-
-  if (!text) {
-    return ctx.reply('❌ Invalid command. Usage:\n/reply <user_id> <message>');
-  }
-
-  const match = text.match(/^\/reply\s+(\d+)\s+([\s\S]+)/);
-  if (!match) {
-    return ctx.reply('❌ Invalid format. Usage:\n/reply <user_id> <message>');
-  }
-
-  const userId = Number(match[1]);
-  const replyMessage = match[2].trim();
-
-  if (!replyMessage) {
-    return ctx.reply('❌ Message is empty.');
-  }
-
-  try {
-    const sentMessage = await ctx.telegram.sendMessage(userId, replyMessage, {
-      parse_mode: 'Markdown',
-    });
-
-    if (sentMessage && sentMessage.message_id) {
-      await ctx.reply(`✅ Message delivered to user ID: ${userId}`);
-    } else {
-      await ctx.reply(`⚠️ Message sent, but no confirmation received.`);
+    const parts = ctx.message.text?.split(' ');
+    if (!parts || parts.length < 3) {
+      return ctx.reply('Usage: /reply <user_id> <message>');
     }
-  } catch (err: any) {
-    console.error('Failed to send message to user:', err);
-    let errorMsg = '❌ Failed to send message.';
 
-    if (err.response && err.response.error_code) {
-      // Telegram-specific error formatting
-      const code = err.response.error_code;
-      const desc = err.response.description;
+    const userId = parseInt(parts[1]);
+    const replyMessage = parts.slice(2).join(' ');
 
-      if (code === 403 && desc.includes('bot was blocked')) {
-        errorMsg += ' The bot was *blocked* by the user.';
-      } else if (code === 400 && desc.includes('chat not found')) {
-        errorMsg += ' User *has not started the bot* yet.';
+    try {
+      await ctx.telegram.sendMessage(userId, replyMessage);
+      await ctx.reply('Message sent.');
+    } catch (err) {
+      console.error('Failed to send reply:', err);
+      await ctx.reply('Failed to send message. The user may have blocked the bot.');
+    }
+  });
+
+  // Forward media from admin with caption: /reply <user_id>
+  bot.on('message', async (ctx) => {
+    if (ctx.from?.id !== ADMIN_ID || !ctx.message.caption?.startsWith('/reply ')) return;
+
+    const parts = ctx.message.caption.split(' ');
+    if (parts.length < 2) return;
+
+    const userId = parseInt(parts[1]);
+    if (isNaN(userId)) return;
+
+    try {
+      const msg = ctx.message as Message;
+
+      if ('photo' in msg) {
+        await ctx.telegram.sendPhoto(userId, msg.photo[msg.photo.length - 1].file_id, {
+          caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
+        });
+      } else if ('video' in msg) {
+        await ctx.telegram.sendVideo(userId, msg.video.file_id, {
+          caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
+        });
+      } else if ('document' in msg) {
+        await ctx.telegram.sendDocument(userId, msg.document.file_id, {
+          caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
+        });
+      } else if ('audio' in msg) {
+        await ctx.telegram.sendAudio(userId, msg.audio.file_id, {
+          caption: msg.caption?.replace(`/reply ${userId}`, '').trim(),
+        });
+      } else if ('voice' in msg) {
+        await ctx.telegram.sendVoice(userId, msg.voice.file_id);
       } else {
-        errorMsg += `\nTelegram error ${code}: ${desc}`;
+        await ctx.reply('Unsupported media type.');
       }
-    }
 
-    await ctx.reply(errorMsg, { parse_mode: 'Markdown' });
-  }
-});
+      await ctx.reply('Media sent.');
+    } catch (err) {
+      console.error('Failed to forward media reply:', err);
+      await ctx.reply('Failed to send media.');
+    }
+  });
 };
