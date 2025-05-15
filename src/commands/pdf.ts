@@ -53,6 +53,12 @@ const messageMap: Record<string, number> = {
   'biology-module-12th': 49,
   'physics-module-12th': 50,
   'physics-module-11th': 51,
+  'ncert-exemplar-chemistry-11': 52,
+  'ncert-exemplar-chemistry-12': 53,
+  'ncert-exemplar-physics-11': 54,
+  'ncert-exemplar-physics-12': 55,
+  'ncert-exemplar-biology-11': 56,
+  'ncert-exemplar-biology-12': 57,
 };
 
 const fileStorageChatId = -1002589507108;
