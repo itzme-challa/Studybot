@@ -46,6 +46,13 @@ const messageMap: Record<string, number> = {
   'dcpandey-objective-full': 42,
   'dcpandey-volume1': 43,
   'dcpandey-volume2': 44,
+  'inorganic-chemistry-module': 45,
+  'organic-chemistry-module': 46,
+  'physical-chemistry-module': 47,
+  'biology-module-11th': 48,
+  'biology-module-12th': 49,
+  'physics-module-12th': 50,
+  'physics-module-11th': 51,
 };
 
 const fileStorageChatId = -1002589507108;
