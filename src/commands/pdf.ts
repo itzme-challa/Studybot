@@ -59,6 +59,12 @@ const messageMap: Record<string, number> = {
   'ncert-exemplar-physics-12': 55,
   'ncert-exemplar-biology-11': 56,
   'ncert-exemplar-biology-12': 57,
+  'organic-chemistry-word-to-word': 58,
+  'biology-word-to-word': 59,
+  'inorganic-chemistry-word-to-word': 60,
+  'arihant-physics-handbook': 61,
+  'arihant-mathematics-handbook': 62,
+  'arihant-chemistry-handbook': 63,
 };
 
 const fileStorageChatId = -1002589507108;
