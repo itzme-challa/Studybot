@@ -145,9 +145,9 @@
   ]
 },
   {
-  "title": "It's too long for more, view this following link",
+  "title": "Too long to list here, view the following link",
   "items": [
     { "label": "View More Study Material", "key": "view-more-study-material" }
   ]
-  }
+}
 ]
