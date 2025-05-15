@@ -65,6 +65,7 @@ const messageMap: Record<string, number> = {
   'arihant-physics-handbook': 61,
   'arihant-mathematics-handbook': 62,
   'arihant-chemistry-handbook': 63,
+  'view-more-study-material': 64,
 };
 
 const fileStorageChatId = -1002589507108;
