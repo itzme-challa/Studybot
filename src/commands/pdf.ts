@@ -86,6 +86,10 @@ const messageMap: Record<string, number> = {
   'arihant-pyq-biology': 82,
   'arihant-pyq-physics': 83,
   'arihant-pyq-chemistry': 84,
+  'allen-physics-handbook': 85,
+'allen-chemistry-handbook': 86,
+'allen-biology-handbook': 87,
+'allen-maths-handbook': 88,
 };
 
 const fileStorageChatId = -1002589507108;
