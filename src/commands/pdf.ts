@@ -69,6 +69,23 @@ const messageMap: Record<string, number> = {
     '10-full-syllabus-mock-anand': 65,
   'akash-modules': 66,
   'allen-modules': 67,
+  'allen-11-years-pyq': 68,
+  'ncert-punch-biology': 69,
+  'ncert-punch-chemistry': 70,
+  'ncert-punch-physics': 71,
+  'competishun-jee-maths-5yr-pyq': 72,
+  'competishun-jee-chemistry-5yr-pyq': 73,
+  'competishun-jee-physics-5yr-pyq': 74,
+  'pw-pyq-physics-11': 75,
+  'pw-pyq-physics-12': 76,
+  'pw-pyq-organic-chemistry': 77,
+  'pw-pyq-inorganic-chemistry': 78,
+  'pw-pyq-physical-chemistry': 79,
+  'pw-pyq-biology-11': 80,
+  'pw-pyq-biology-12': 81,
+  'arihant-pyq-biology': 82,
+  'arihant-pyq-physics': 83,
+  'arihant-pyq-chemistry': 84,
 };
 
 const fileStorageChatId = -1002589507108;
