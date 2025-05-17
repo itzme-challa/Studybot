@@ -123,6 +123,13 @@ const messageMap: Record<string, number> = {
 'arihant-40-days-crash-jee-mains-physics': 119,
 'Arihant-40-days-crash-jee-mains-chemistry': 120,
 'arihant-40-days-crash-jee-mains-mathematics': 121,
+  'motion-classes-maths-module': 122,
+'motion-iit-chemistry-module': 123,
+'motion-classes-physics-module': 124,
+'motion-final-revision-module': 125,
+'motion-revision-module-physics': 126,
+'motion-revision-module-chemistry': 127,
+'motion-revision-module-mathematics': 128,
 };
 
 const fileStorageChatId = -1002589507108;
