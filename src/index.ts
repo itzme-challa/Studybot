@@ -19,12 +19,6 @@ console.log(`Running bot in ${ENVIRONMENT} mode`);
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// Restrict to private chats & members only
-bot.use(async (ctx, next) => {
-  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
-  const isAllowed = await checkMembership(ctx);
-  if (isAllowed) await next();
-});
 
 // --- Commands ---
 bot.command('about', about());
