@@ -5,7 +5,7 @@ import { fetchChatIdsFromSheet } from './utils/chatStore';
 import { about } from './commands/about';
 import { help, handleHelpPagination } from './commands/help';
 import { pdf } from './commands/pdf';
-import { greeting, checkMembership } from './text/greeting';
+import { greeting} from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
