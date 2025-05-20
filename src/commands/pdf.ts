@@ -95,7 +95,7 @@ const messageMap: Record<string, number> = {
 'gurukul-oswal-objective-iit-jee': 91,
 'neet-crash-pw-45-days-physics': 92,
 'NEET-crash-pw-45-days-biology': 93,
-'neet-CRASH-pw-45-days-chemistry': 94,
+'neet-crash-pw-45-days-chemistry': 94,
 'bansal-classes-chemistry-theory': 95,
 'Bansal-classes-math-questions': 96,
 'bansal-classes-physics-booklet': 97,
