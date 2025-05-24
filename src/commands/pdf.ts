@@ -166,6 +166,13 @@ const messageMap: Record<string, number> = {
 'mtg-36-years-pyq-chemistry-11': 162,
 'mtg-36-years-pyq-chemistry-12': 163,
 'mtg-36-years-pyq-physics-11': 164,
+  'pw-module-physical-chemistry': 167,
+'pw-module-biology-11': 168,
+'pw-module-physics-12': 169,
+'pw-module-inorganic-chemistry': 170,
+'pw-module-biology-12': 171,
+'pw-module-organic-chemistry': 172,
+'pw-module-physics-11': 173,
 };
 
 const fileStorageChatId = -1002589507108;
