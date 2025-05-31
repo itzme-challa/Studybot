@@ -166,6 +166,8 @@ const messageMap: Record<string, number> = {
 'mtg-36-years-pyq-chemistry-11': 162,
 'mtg-36-years-pyq-chemistry-12': 163,
 'mtg-36-years-pyq-physics-11': 164,
+  'akash-diagrams-1': 165,
+  'akash-diagrams-2': 166,
   'pw-module-physical-chemistry': 167,
 'pw-module-biology-11': 168,
 'pw-module-physics-12': 169,
