@@ -204,7 +204,7 @@ const messageMap: Record<string, number> = {
 'lakshya-chemistry': 202,
 };
 
-const fileStorageChatId = -1002537660759;
+const fileStorageChatId = -1002481747949;
 
 const handlePdfCommand = async (ctx: Context, keyword: string) => {
   if (!messageMap[keyword]) return;
