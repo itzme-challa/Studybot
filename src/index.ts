@@ -5,12 +5,12 @@ import { fetchChatIdsFromSheet } from './utils/chatStore';
 import { about } from './commands/about';
 import { help, handleHelpPagination } from './commands/help';
 import { pdf } from './commands/pdf';
-import { yakeen, handleYakeenPagination, handleYakeenSubject, handleYakeenChapter, handleYakeenKeys, getKeys } from './commands/yakeen';
+import { yakeen, handleYakeenPagination, handleYakeenSubject, handleYakeenChapter, handleYakeenKeys } from './commands/yakeen';
 import { greeting } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
-import { db, ref, set } from './utils/firebase'; // Import Firebase utilities
+import { db, ref, set } from './utils/firebase';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -33,7 +33,6 @@ bot.use(session());
 // --- Commands ---
 bot.command('about', about());
 
-// Multiple triggers for help/material/pdf content
 const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
 helpTriggers.forEach(trigger => bot.command(trigger, help()));
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help);
@@ -71,7 +70,7 @@ setupBroadcast(bot);
 // --- Callback Handler ---
 bot.on('callback_query', async (ctx: MyContext) => {
   const callback = ctx.callbackQuery;
-  if ('data' in callback) {
+  if ('data' in callback && callback.data) {
     const data = callback.data;
 
     if (data.startsWith('help_page_')) {
@@ -94,9 +93,11 @@ bot.on('callback_query', async (ctx: MyContext) => {
     } else if (data.startsWith('yakeen_chapter_')) {
       await handleYakeenChapter(ctx, data.split('_')[2], data.split('_')[3]);
     } else if (data.startsWith('yakeen_page_')) {
-      await handleYakeenPagination(ctx, data.split('_')[2], data.split('_')[3]);
+      const [, , batch, subject, page] = data.split('_');
+      await handleYakeenPagination(ctx, batch, subject, page);
     } else if (data.startsWith('yakeen_keys_')) {
-      await handleYakeenKeys(ctx, data.split('_')[2], data.split('_')[3], data.split('_')[4]);
+      const [, , batch, subject, chapter] = data.split('_');
+      await handleYakeenKeys(ctx, batch, subject, chapter);
     } else {
       await ctx.answerCbQuery('Unknown action');
     }
@@ -145,15 +146,14 @@ bot.on('text', async (ctx: MyContext) => {
       return { key, id };
     });
 
-    const invalidPairs = keyPairs.filter((pair: { key: string; id: string }) => !pair.key || isNaN(parseInt(pair.id)));
-    if (invalidPairs.length > 0) {
+    if (keyPairs.some((pair: { key: string; id: string }) => !pair.key || isNaN(parseInt(pair.id)))) {
       await ctx.reply('Invalid format. Please use: key1:id1,key2:id2,...');
       return;
     }
 
     try {
       const keysRef = ref(db, `batches/${batch}/${subject}/${chapter}/keys`);
-      const currentKeys = await getKeys(batch, subject, chapter);
+      const currentKeys = await import('./commands/yakeen').then(m => m.getKeys(batch, subject, chapter));
       const updatedKeys = { ...currentKeys };
 
       for (const { key, id } of keyPairs) {
@@ -176,9 +176,11 @@ bot.on('text', async (ctx: MyContext) => {
 
 // --- New Member Welcome (Group) ---
 bot.on('new_chat_members', async (ctx: MyContext) => {
-  for (const member of ctx.message.new_chat_members) {
-    if (member.username === ctx.botInfo.username) {
-      await ctx.reply('Thanks for adding me! Type /help to get started.');
+  if ('new_chat_members' in ctx.message) {
+    for (const member of ctx.message.new_chat_members) {
+      if (member.username === ctx.botInfo.username) {
+        await ctx.reply('Thanks for adding me! Type /help to get started.');
+      }
     }
   }
 });
