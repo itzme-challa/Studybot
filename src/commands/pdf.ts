@@ -7,7 +7,7 @@ import { Readable } from 'stream';
 const debug = createDebug('bot:pdf_handler');
 
 // Make sure this ID is correct and the bot has access
-const fileStorageChatId = -1002481747949;
+const fileStorageChatId = @pw_yakeen2_neet2026;
 
 // --- Fetch and parse CSV from Google Drive ---
 const fetchMessageMap = async (): Promise<Record<string, number>> => {
