@@ -39,7 +39,7 @@ interface MaterialItem {
 
 let accessToken: string | null = null;
 
-async function verifyMessageExists(messageId: number): Promise<boolean> {
+async function verifyMessageExists(ctx: Context, messageId: number): Promise<boolean> {
   try {
     // Try to get the message to verify it exists
     await ctx.telegram.getMessage(fileStorageChatId, messageId);
@@ -138,7 +138,7 @@ async function createTelegraphPage(query: string, matches: MaterialItem[]): Prom
   }
 }
 
-async function findSimilarResources(path: ResourcePath): Promise<MaterialItem[]> {
+async function findSimilarResources(ctx: Context, path: ResourcePath): Promise<MaterialItem[]> {
   try {
     let searchPath: string;
     
@@ -164,12 +164,7 @@ async function findSimilarResources(path: ResourcePath): Promise<MaterialItem[]>
 
     // Verify which messages actually exist
     for (const item of items) {
-      try {
-        await ctx.telegram.getMessage(fileStorageChatId, item.messageId);
-      } catch (error) {
-        item.exists = false;
-        debug(`Message ${item.messageId} not found in storage channel`);
-      }
+      item.exists = await verifyMessageExists(ctx, item.messageId);
     }
 
     return items.filter(item => item.exists);
@@ -211,16 +206,7 @@ const getMessageId = async (path: ResourcePath): Promise<number | null> => {
       return null;
     }
 
-    const messageId = snapshot.val();
-    
-    // Verify the message exists before returning
-    try {
-      await ctx.telegram.getMessage(fileStorageChatId, messageId);
-      return messageId;
-    } catch (error) {
-      debug(`Message ${messageId} not found in storage channel`);
-      return null;
-    }
+    return snapshot.val();
   } catch (error) {
     console.error('Error fetching from Firebase:', error);
     return null;
@@ -233,13 +219,16 @@ const handlePdfCommand = async (ctx: Context, path: ResourcePath, originalQuery:
     
     if (messageId) {
       try {
-        await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
-        await ctx.telegram.copyMessage(
-          ctx.chat!.id,
-          fileStorageChatId,
-          messageId
-        );
-        return;
+        const exists = await verifyMessageExists(ctx, messageId);
+        if (exists) {
+          await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
+          await ctx.telegram.copyMessage(
+            ctx.chat!.id,
+            fileStorageChatId,
+            messageId
+          );
+          return;
+        }
       } catch (copyError) {
         console.error('Error copying message:', copyError);
         // Fall through to similar resources search
@@ -247,7 +236,7 @@ const handlePdfCommand = async (ctx: Context, path: ResourcePath, originalQuery:
     }
 
     // If exact match not found or failed, look for similar resources
-    const similarResources = await findSimilarResources(path);
+    const similarResources = await findSimilarResources(ctx, path);
     
     if (similarResources.length > 0) {
       try {
