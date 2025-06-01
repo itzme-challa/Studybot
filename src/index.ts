@@ -1,15 +1,16 @@
-import { Telegraf, session, Context } from 'telegraf';
+import { Telegraf, session, Context, Markup } from 'telegraf';
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { saveToSheet } from './utils/saveToSheet';
 import { fetchChatIdsFromSheet } from './utils/chatStore';
 import { about } from './commands/about';
 import { help, handleHelpPagination } from './commands/help';
 import { pdf } from './commands/pdf';
-import { yakeen, handleYakeenPagination, handleYakeenSubject, handleYakeenChapter, handleYakeenKeys } from './commands/yakeen';
+import { yakeen, handleYakeenPagination, handleYakeenSubject, handleYakeenChapter, handleYakeenKeys, getKeys } from './commands/yakeen';
 import { greeting } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
+import { db, ref, set } from './utils/firebase'; // Import Firebase utilities
 
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ENVIRONMENT = process.env.NODE_ENV || '';
@@ -35,19 +36,19 @@ bot.command('about', about());
 // Multiple triggers for help/material/pdf content
 const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
 helpTriggers.forEach(trigger => bot.command(trigger, help()));
-bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
+bot.hears(/^(help|study|material|pdf|pdfs)$/i, help);
 
 // Yakeen command
 bot.command('yakeen', yakeen());
 
 // Admin: /publish
-bot.command('publish', async (ctx) => {
+bot.command('publish', async (ctx: MyContext) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
   await handleYakeenSubject(ctx, '2026');
 });
 
 // Admin: /users
-bot.command('users', async (ctx) => {
+bot.command('users', async (ctx: MyContext) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
 
   try {
@@ -68,7 +69,7 @@ bot.command('users', async (ctx) => {
 setupBroadcast(bot);
 
 // --- Callback Handler ---
-bot.on('callback_query', async (ctx) => {
+bot.on('callback_query', async (ctx: MyContext) => {
   const callback = ctx.callbackQuery;
   if ('data' in callback) {
     const data = callback.data;
@@ -105,7 +106,7 @@ bot.on('callback_query', async (ctx) => {
 });
 
 // --- /start ---
-bot.start(async (ctx) => {
+bot.start(async (ctx: MyContext) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
   const user = ctx.from;
@@ -129,17 +130,17 @@ bot.start(async (ctx) => {
 });
 
 // --- Text Handler ---
-bot.on('text', async (ctx) => {
+bot.on('text', async (ctx: MyContext) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
   const text = ctx.message.text?.toLowerCase();
   if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
     await help()(ctx);
-  } else if (text.startsWith('/yakeen_')) {
+  } else if (text?.startsWith('/yakeen_')) {
     await yakeen()(ctx);
   } else if (ctx.from?.id === ADMIN_ID && ctx.session?.awaitingKeys) {
     const { batch, subject, chapter } = ctx.session.awaitingKeys;
-    const keyPairs = text.split(',').map((pair: string) => {
+    const keyPairs = text?.split(',').map((pair: string) => {
       const [key, id] = pair.split(':').map((s: string) => s.trim());
       return { key, id };
     });
@@ -174,7 +175,7 @@ bot.on('text', async (ctx) => {
 });
 
 // --- New Member Welcome (Group) ---
-bot.on('new_chat_members', async (ctx) => {
+bot.on('new_chat_members', async (ctx: MyContext) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
       await ctx.reply('Thanks for adding me! Type /help to get started.');
@@ -183,7 +184,7 @@ bot.on('new_chat_members', async (ctx) => {
 });
 
 // --- Message Tracker for Private Chats ---
-bot.on('message', async (ctx) => {
+bot.on('message', async (ctx: MyContext) => {
   const chat = ctx.chat;
   if (!chat?.id || !isPrivateChat(chat.type)) return;
 
