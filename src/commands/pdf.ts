@@ -34,9 +34,21 @@ interface ResourcePath {
 interface MaterialItem {
   path: string;
   messageId: number;
+  exists?: boolean;
 }
 
 let accessToken: string | null = null;
+
+async function verifyMessageExists(messageId: number): Promise<boolean> {
+  try {
+    // Try to get the message to verify it exists
+    await ctx.telegram.getMessage(fileStorageChatId, messageId);
+    return true;
+  } catch (error) {
+    debug(`Message ${messageId} not found in storage channel`);
+    return false;
+  }
+}
 
 async function createTelegraphAccount() {
   try {
@@ -65,6 +77,13 @@ async function createTelegraphPage(query: string, matches: MaterialItem[]): Prom
     await createTelegraphAccount();
   }
 
+  // Filter out non-existent messages
+  const validMatches = matches.filter(m => m.exists);
+
+  if (validMatches.length === 0) {
+    throw new Error('No valid resources found');
+  }
+
   // Prepare Telegraph page content
   const content = [
     {
@@ -77,7 +96,7 @@ async function createTelegraphPage(query: string, matches: MaterialItem[]): Prom
     },
     {
       tag: 'ul',
-      children: matches.map(match => ({
+      children: validMatches.map(match => ({
         tag: 'li',
         children: [
           {
@@ -137,10 +156,23 @@ async function findSimilarResources(path: ResourcePath): Promise<MaterialItem[]>
     }
 
     const resources = snapshot.val();
-    return Object.entries(resources).map(([key, messageId]) => ({
+    const items = Object.entries(resources).map(([key, messageId]) => ({
       path: `${searchPath}/${key}`.replace(/\//g, '_'),
-      messageId: messageId as number
+      messageId: messageId as number,
+      exists: true // Will be verified later
     }));
+
+    // Verify which messages actually exist
+    for (const item of items) {
+      try {
+        await ctx.telegram.getMessage(fileStorageChatId, item.messageId);
+      } catch (error) {
+        item.exists = false;
+        debug(`Message ${item.messageId} not found in storage channel`);
+      }
+    }
+
+    return items.filter(item => item.exists);
   } catch (error) {
     console.error('Error searching resources:', error);
     return [];
@@ -179,7 +211,16 @@ const getMessageId = async (path: ResourcePath): Promise<number | null> => {
       return null;
     }
 
-    return snapshot.val();
+    const messageId = snapshot.val();
+    
+    // Verify the message exists before returning
+    try {
+      await ctx.telegram.getMessage(fileStorageChatId, messageId);
+      return messageId;
+    } catch (error) {
+      debug(`Message ${messageId} not found in storage channel`);
+      return null;
+    }
   } catch (error) {
     console.error('Error fetching from Firebase:', error);
     return null;
@@ -191,21 +232,31 @@ const handlePdfCommand = async (ctx: Context, path: ResourcePath, originalQuery:
     const messageId = await getMessageId(path);
     
     if (messageId) {
-      await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
-      await ctx.telegram.copyMessage(
-        ctx.chat!.id,
-        fileStorageChatId,
-        messageId
-      );
-      return;
+      try {
+        await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
+        await ctx.telegram.copyMessage(
+          ctx.chat!.id,
+          fileStorageChatId,
+          messageId
+        );
+        return;
+      } catch (copyError) {
+        console.error('Error copying message:', copyError);
+        // Fall through to similar resources search
+      }
     }
 
-    // If exact match not found, look for similar resources
+    // If exact match not found or failed, look for similar resources
     const similarResources = await findSimilarResources(path);
     
     if (similarResources.length > 0) {
-      const telegraphUrl = await createTelegraphPage(originalQuery, similarResources);
-      await ctx.reply(`The exact resource wasn't found, but we found these similar ones:\n\n${telegraphUrl}`);
+      try {
+        const telegraphUrl = await createTelegraphPage(originalQuery, similarResources);
+        await ctx.reply(`The exact resource wasn't found, but we found these similar ones:\n\n${telegraphUrl}`);
+      } catch (telegraphError) {
+        console.error('Error creating Telegraph page:', telegraphError);
+        await ctx.reply('Found similar resources but failed to create summary. Please try a more specific search.');
+      }
     } else {
       await ctx.reply('No matching resources found. Please check your query and try again.');
     }
