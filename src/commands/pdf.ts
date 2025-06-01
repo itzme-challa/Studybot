@@ -6,7 +6,7 @@ import { Readable } from 'stream';
 
 const debug = createDebug('bot:pdf_handler');
 
-// 🛑 Replace this with the actual chat ID after verifying using the debug section below
+// Replace this with your verified channel ID (see debug instructions below)
 let fileStorageChatId = -1002481747949;
 
 // --- Fetch and parse CSV from Google Drive ---
@@ -93,9 +93,10 @@ const pdf = () => async (ctx: Context) => {
   try {
     const message = ctx.message;
 
-    // 🐞 Chat ID debug tool: when a user forwards a message from a channel
-    if (message?.forward_from_chat) {
-      const actualChatId = message.forward_from_chat.id;
+    // 🐞 Chat ID debug: When user forwards a message to bot
+    const forwardFromChat = (ctx.message as any)?.forward_from_chat;
+    if (forwardFromChat) {
+      const actualChatId = forwardFromChat.id;
       console.log('📢 Forwarded message came from chat ID:', actualChatId);
       await ctx.reply(`This message is from chat ID: \`${actualChatId}\``, { parse_mode: 'Markdown' });
     }
