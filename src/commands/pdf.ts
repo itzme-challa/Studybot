@@ -21,7 +21,7 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const dbRef = ref(database);
 
-const fileStorageChatId = -1002277073649;
+const fileStorageChatId = -1002481747949;
 
 interface ResourcePath {
   batch: string;
@@ -41,7 +41,6 @@ let accessToken: string | null = null;
 
 async function verifyMessageExists(ctx: Context, messageId: number): Promise<boolean> {
   try {
-    // Use callApi to invoke Telegram's getMessage method
     await ctx.telegram.callApi('getMessage', {
       chat_id: fileStorageChatId,
       message_id: messageId,
@@ -178,7 +177,7 @@ async function findSimilarResources(ctx: Context, path: ResourcePath): Promise<M
 }
 
 const parseCommand = (text: string): ResourcePath | null => {
-  const parts = text.trim().split('__');
+  const parts = text.trim().toLowerCase().split('__');
   
   if (parts.length < 3) return null;
 
@@ -247,14 +246,14 @@ const handlePdfCommand = async (ctx: Context, path: ResourcePath, originalQuery:
         await ctx.reply(`The exact resource wasn't found, but we found these similar ones:\n\n${telegraphUrl}`);
       } catch (telegraphError) {
         console.error('Error creating Telegraph page:', telegraphError);
-        await ctx.reply('Found similar resources but failed to create summary. Please try a more specific search.');
+        await ctx.reply('Found similar resources but failed to create summary. Please try a more specific search or contact @NeetAspirantsBot.');
       }
     } else {
-      await ctx.reply('No matching resources found. Please check your query and try again.');
+      await ctx.reply('No matching resources found. Please check your query and try again or contact @NeetAspirantsBot.');
     }
   } catch (err) {
     console.error('Error handling PDF command:', err);
-    await ctx.reply('An error occurred while fetching your file. Please try again later or contact support.');
+    await ctx.reply('An error occurred while fetching your file. Please contact @NeetAspirantsBot for assistance and try again later.');
   }
 };
 
@@ -272,7 +271,7 @@ const pdf = () => async (ctx: Context) => {
         if (resourcePath) {
           await handlePdfCommand(ctx, resourcePath, commandParts[1]);
         } else {
-          await ctx.reply('Invalid command format. Please use: batch__subject__chapter__resource');
+          await ctx.reply('Invalid command format. Please use: batch__subject__chapter__resource or contact @NeetAspirantsBot.');
         }
         return;
       }
@@ -283,11 +282,34 @@ const pdf = () => async (ctx: Context) => {
     if (resourcePath) {
       await handlePdfCommand(ctx, resourcePath, message.text);
     } else {
-      await ctx.reply('Invalid command format. Please use: batch__subject__chapter__resource');
+      // Try to find resources in the general 'all_contents' for the batch and subject
+      const parts = message.text.trim().toLowerCase().split('__');
+      if (parts.length >= 2) {
+        const fallbackPath: ResourcePath = {
+          batch: parts[0],
+          subject: parts[1],
+          resourceType: parts.length > 2 ? parts[2] : '',
+          resourceKey: parts.length > 2 ? parts.slice(2).join('__') : ''
+        };
+        const similarResources = await findSimilarResources(ctx, fallbackPath);
+        if (similarResources.length > 0) {
+          try {
+            const telegraphUrl = await createTelegraphPage(message.text, similarResources);
+            await ctx.reply(`The resource "${message.text}" wasn't found, but we found these similar ones:\n\n${telegraphUrl}`);
+          } catch (telegraphError) {
+            console.error('Error creating Telegraph page:', telegraphError);
+            await ctx.reply('Found similar resources but failed to create summary. Please try a more specific search or contact @NeetAspirantsBot.');
+          }
+        } else {
+          await ctx.reply('No matching resources found. Please use the format: batch__subject__chapter__resource or contact @NeetAspirantsBot.');
+        }
+      } else {
+        await ctx.reply('Invalid command format. Please use: batch__subject__chapter__resource or contact @NeetAspirantsBot.');
+      }
     }
   } catch (err) {
     console.error('PDF command handler error:', err);
-    await ctx.reply('An error occurred while processing your request. Please contact support.');
+    await ctx.reply('An error occurred while processing your request. Please contact @NeetAspirantsBot for assistance.');
   }
 };
 
