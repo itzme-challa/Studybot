@@ -7,7 +7,7 @@ import { Readable } from 'stream';
 const debug = createDebug('bot:pdf_handler');
 
 // Replace this with your verified channel ID (see debug instructions below)
-let fileStorageChatId = -1002481747949;
+let fileStorageChatId = -1002277073649;
 
 // --- Fetch and parse CSV from Google Drive ---
 const fetchMessageMap = async (): Promise<Record<string, number>> => {
