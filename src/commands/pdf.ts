@@ -31,8 +31,123 @@ interface ResourcePath {
   resourceKey: string;
 }
 
+interface MaterialItem {
+  path: string;
+  messageId: number;
+}
+
+let accessToken: string | null = null;
+
+async function createTelegraphAccount() {
+  try {
+    const res = await fetch('https://api.telegra.ph/createAccount', {
+      method: 'POST',
+      body: new URLSearchParams({ 
+        short_name: 'studybot', 
+        author_name: 'Study Bot' 
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      accessToken = data.result.access_token;
+      debug('Created new Telegraph account');
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error creating Telegraph account:', error);
+    throw error;
+  }
+}
+
+async function createTelegraphPage(query: string, matches: MaterialItem[]): Promise<string> {
+  if (!accessToken) {
+    await createTelegraphAccount();
+  }
+
+  // Prepare Telegraph page content
+  const content = [
+    {
+      tag: 'h3',
+      children: [`Search results for: ${query}`]
+    },
+    {
+      tag: 'p',
+      children: ['Found these matching resources:']
+    },
+    {
+      tag: 'ul',
+      children: matches.map(match => ({
+        tag: 'li',
+        children: [
+          {
+            tag: 'a',
+            attrs: {
+              href: `https://t.me/NeetJeestudy_bot?start=${match.path.replace(/\//g, '_')}`
+            },
+            children: [match.path.split('/').pop() || match.path]
+          }
+        ]
+      }))
+    },
+    {
+      tag: 'p',
+      children: ['Click on any link to get the resource directly in Telegram']
+    }
+  ];
+
+  try {
+    const res = await fetch('https://api.telegra.ph/createPage', {
+      method: 'POST',
+      body: new URLSearchParams({
+        access_token: accessToken!,
+        title: `Study Material: ${query.slice(0, 50)}`,
+        author_name: 'Study Bot',
+        content: JSON.stringify(content),
+        return_content: 'true',
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      return `https://telegra.ph/${data.result.path}`;
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error creating Telegraph page:', error);
+    throw error;
+  }
+}
+
+async function findSimilarResources(path: ResourcePath): Promise<MaterialItem[]> {
+  try {
+    let searchPath: string;
+    
+    if (path.chapter) {
+      searchPath = `batches/${path.batch}/${path.subject}/${path.chapter}/keys`;
+    } else {
+      searchPath = `batches/${path.batch}/${path.subject}/all_contents/keys`;
+    }
+
+    debug(`Searching for similar resources at: ${searchPath}`);
+    const snapshot = await get(child(dbRef, searchPath));
+    
+    if (!snapshot.exists()) {
+      return [];
+    }
+
+    const resources = snapshot.val();
+    return Object.entries(resources).map(([key, messageId]) => ({
+      path: `${searchPath}/${key}`.replace(/\//g, '_'),
+      messageId: messageId as number
+    }));
+  } catch (error) {
+    console.error('Error searching resources:', error);
+    return [];
+  }
+}
+
 const parseCommand = (text: string): ResourcePath | null => {
-  // Example command format: "/start 2026_botany_biodiversity_and_conservation_pyqs_neet"
   const parts = text.trim().split('_');
   
   if (parts.length < 3) return null;
@@ -71,22 +186,29 @@ const getMessageId = async (path: ResourcePath): Promise<number | null> => {
   }
 };
 
-const handlePdfCommand = async (ctx: Context, path: ResourcePath) => {
+const handlePdfCommand = async (ctx: Context, path: ResourcePath, originalQuery: string) => {
   try {
     const messageId = await getMessageId(path);
     
-    if (!messageId) {
-      await ctx.reply('The requested resource was not found. Please check the command and try again.');
+    if (messageId) {
+      await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
+      await ctx.telegram.copyMessage(
+        ctx.chat!.id,
+        fileStorageChatId,
+        messageId
+      );
       return;
     }
 
-    await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
-
-    await ctx.telegram.copyMessage(
-      ctx.chat!.id,
-      fileStorageChatId,
-      messageId
-    );
+    // If exact match not found, look for similar resources
+    const similarResources = await findSimilarResources(path);
+    
+    if (similarResources.length > 0) {
+      const telegraphUrl = await createTelegraphPage(originalQuery, similarResources);
+      await ctx.reply(`The exact resource wasn't found, but we found these similar ones:\n\n${telegraphUrl}`);
+    } else {
+      await ctx.reply('No matching resources found. Please check your query and try again.');
+    }
   } catch (err) {
     console.error('Error handling PDF command:', err);
     await ctx.reply('An error occurred while fetching your file. Please try again later or contact support.');
@@ -105,7 +227,7 @@ const pdf = () => async (ctx: Context) => {
       if (commandParts.length > 1) {
         const resourcePath = parseCommand(commandParts[1]);
         if (resourcePath) {
-          await handlePdfCommand(ctx, resourcePath);
+          await handlePdfCommand(ctx, resourcePath, commandParts[1]);
         } else {
           await ctx.reply('Invalid command format. Please use the correct format.');
         }
@@ -116,7 +238,7 @@ const pdf = () => async (ctx: Context) => {
     // Handle plain text commands
     const resourcePath = parseCommand(message.text);
     if (resourcePath) {
-      await handlePdfCommand(ctx, resourcePath);
+      await handlePdfCommand(ctx, resourcePath, message.text);
     } else {
       await ctx.reply('Invalid command format. Please use: batch_subject_chapter_resource');
     }
