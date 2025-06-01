@@ -218,8 +218,7 @@ const handlePdfCommand = async (ctx: Context, keyword: string) => {
   await ctx.telegram.copyMessage(
     ctx.chat!.id,
     fileStorageChatId,
-    messageMap[keyword],
-    { reply_to_message_id: ctx.message?.message_id }
+    messageMap[keyword]
   );
 };
 
