@@ -39,19 +39,6 @@ interface MaterialItem {
 
 let accessToken: string | null = null;
 
-async function verifyMessageExists(ctx: Context, messageId: number): Promise<boolean> {
-  try {
-    await ctx.telegram.callApi('getMessage', {
-      chat_id: fileStorageChatId,
-      message_id: messageId,
-    });
-    return true;
-  } catch (error) {
-    debug(`Message ${messageId} not found in storage channel: ${error}`);
-    return false;
-  }
-}
-
 async function createTelegraphAccount() {
   try {
     const res = await fetch('https://api.telegra.ph/createAccount', {
@@ -166,7 +153,20 @@ async function findSimilarResources(ctx: Context, path: ResourcePath): Promise<M
 
     // Verify which messages actually exist
     for (const item of items) {
-      item.exists = await verifyMessageExists(ctx, item.messageId);
+      try {
+        await ctx.telegram.copyMessage(
+          ctx.chat!.id,
+          fileStorageChatId,
+          item.messageId,
+          { disable_notification: true }
+        );
+        item.exists = true;
+        // Delete the test message to avoid clutter
+        await ctx.telegram.deleteMessage(ctx.chat!.id, (await ctx.telegram.getUpdates({ limit: 1 }))[0].message!.message_id);
+      } catch (error) {
+        debug(`Message ${item.messageId} not found in storage channel: ${error}`);
+        item.exists = false;
+      }
     }
 
     return items.filter(item => item.exists);
@@ -221,16 +221,13 @@ const handlePdfCommand = async (ctx: Context, path: ResourcePath, originalQuery:
     
     if (messageId) {
       try {
-        const exists = await verifyMessageExists(ctx, messageId);
-        if (exists) {
-          await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
-          await ctx.telegram.copyMessage(
-            ctx.chat!.id,
-            fileStorageChatId,
-            messageId
-          );
-          return;
-        }
+        await ctx.reply('Here is your file. Save or forward it to keep it — this message will not be stored permanently.');
+        await ctx.telegram.copyMessage(
+          ctx.chat!.id,
+          fileStorageChatId,
+          messageId
+        );
+        return;
       } catch (copyError) {
         console.error('Error copying message:', copyError);
         // Fall through to similar resources search
