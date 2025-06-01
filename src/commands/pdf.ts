@@ -21,7 +21,7 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const dbRef = ref(database);
 
-const fileStorageChatId = -1002481747949;
+const fileStorageChatId = -1002277073649;
 
 interface ResourcePath {
   batch: string;
