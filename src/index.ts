@@ -5,7 +5,8 @@ import { fetchChatIdsFromSheet } from './utils/chatStore';
 import { about } from './commands/about';
 import { help, handleHelpPagination } from './commands/help';
 import { pdf } from './commands/pdf';
-import { greeting} from './text/greeting';
+import { yakeen, handleYakeenPagination, handleYakeenSubject, handleYakeenChapter, handleYakeenKeys } from './commands/yakeen';
+import { greeting } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
@@ -19,7 +20,6 @@ console.log(`Running bot in ${ENVIRONMENT} mode`);
 
 const bot = new Telegraf(BOT_TOKEN);
 
-
 // --- Commands ---
 bot.command('about', about());
 
@@ -27,6 +27,15 @@ bot.command('about', about());
 const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
 helpTriggers.forEach(trigger => bot.command(trigger, help()));
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
+
+// Yakeen command
+bot.command('yakeen', yakeen());
+
+// Admin: /publish
+bot.command('publish', async (ctx) => {
+  if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
+  await handleYakeenSubject(ctx, '2026'); // Assuming batch '2026' for now
+});
 
 // Admin: /users
 bot.command('users', async (ctx) => {
@@ -70,6 +79,12 @@ bot.on('callback_query', async (ctx) => {
         console.error('Error refreshing users:', err);
         await ctx.answerCbQuery('Failed to refresh.');
       }
+    } else if (data.startsWith('yakeen_subject_')) {
+      await handleYakeenSubject(ctx, data.split('_')[2]);
+    } else if (data.startsWith('yakeen_chapter_')) {
+      await handleYakeenChapter(ctx, data.split('_')[2], data.split('_')[3]);
+    } else if (data.startsWith('yakeen_page_')) {
+      await handleYakeenPagination(ctx, data.split('_')[2], data.split('_')[3]);
     } else {
       await ctx.answerCbQuery('Unknown action');
     }
@@ -109,6 +124,8 @@ bot.on('text', async (ctx) => {
   const text = ctx.message.text?.toLowerCase();
   if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
     await help()(ctx);
+  } else if (text.startsWith('/yakeen_')) {
+    await yakeen()(ctx);
   } else {
     await greeting()(ctx);
     await pdf()(ctx);
