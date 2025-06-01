@@ -66,7 +66,7 @@ const handleYakeenCommand = async (ctx: MyContext, keyword: string) => {
             ctx.chat!.id,
             CHANNEL_ID,
             parseInt(keys[keyword]),
-            {} // Add options object to satisfy the 4-argument signature
+            {}
           );
           return true;
         } catch (err) {
@@ -84,14 +84,16 @@ const handleYakeenCommand = async (ctx: MyContext, keyword: string) => {
 // Main yakeen command handler
 export const yakeen = () => async (ctx: MyContext) => {
   try {
-    if ('text' in ctx.message) {
-      const text = ctx.message.text.trim().toLowerCase();
-      if (text.startsWith('/yakeen_')) {
-        const keyword = text.replace('/yakeen_', '');
-        await handleYakeenCommand(ctx, keyword);
-      } else {
-        await ctx.reply('Please use /yakeen_<keyword> to request a file.');
-      }
+    if (!('text' in ctx.message)) {
+      await ctx.reply('Please use /yakeen_<keyword> to request a file.');
+      return;
+    }
+    const text = ctx.message.text.trim().toLowerCase();
+    if (text.startsWith('/yakeen_')) {
+      const keyword = text.replace('/yakeen_', '');
+      await handleYakeenCommand(ctx, keyword);
+    } else {
+      await ctx.reply('Please use /yakeen_<keyword> to request a file.');
     }
   } catch (err) {
     console.error('Yakeen command handler error:', err);
