@@ -6,8 +6,8 @@ import { Readable } from 'stream';
 
 const debug = createDebug('bot:pdf_handler');
 
-// Make sure this ID is correct and the bot has access
-const fileStorageChatId = @pw_yakeen2_neet2026;
+// 🛑 Replace this with the actual chat ID after verifying using the debug section below
+let fileStorageChatId = -1002481747949;
 
 // --- Fetch and parse CSV from Google Drive ---
 const fetchMessageMap = async (): Promise<Record<string, number>> => {
@@ -59,9 +59,11 @@ const handlePdfCommand = async (ctx: Context, keyword: string, messageMap: Recor
   }
 
   try {
-    debug(`Sending PDF for keyword: ${keyword} (messageId: ${messageId})`);
+    debug(`Trying to send PDF for keyword: ${keyword} (messageId: ${messageId})`);
+
     await ctx.reply('📎 Here is your file. Save or forward it — this message will not be stored permanently.');
 
+    // Primary attempt: copy message
     await ctx.telegram.copyMessage(
       ctx.chat!.id,
       fileStorageChatId,
@@ -70,10 +72,10 @@ const handlePdfCommand = async (ctx: Context, keyword: string, messageMap: Recor
   } catch (err: any) {
     console.error('Telegram copyMessage error:', err.response?.data || err.message || err);
 
-    await ctx.reply('⚠️ Failed to fetch the file using `copyMessage`. Trying fallback...');
+    await ctx.reply('⚠️ File not sent via `copyMessage`. Trying fallback method...');
 
     try {
-      // Fallback: Try forwarding the message instead
+      // Fallback: forward the message
       await ctx.telegram.forwardMessage(
         ctx.chat!.id,
         fileStorageChatId,
@@ -89,13 +91,21 @@ const handlePdfCommand = async (ctx: Context, keyword: string, messageMap: Recor
 // --- Main PDF handler ---
 const pdf = () => async (ctx: Context) => {
   try {
-    const messageMap = await fetchMessageMap();
     const message = ctx.message;
+
+    // 🐞 Chat ID debug tool: when a user forwards a message from a channel
+    if (message?.forward_from_chat) {
+      const actualChatId = message.forward_from_chat.id;
+      console.log('📢 Forwarded message came from chat ID:', actualChatId);
+      await ctx.reply(`This message is from chat ID: \`${actualChatId}\``, { parse_mode: 'Markdown' });
+    }
+
+    const messageMap = await fetchMessageMap();
 
     if (message && 'text' in message) {
       const text = message.text.trim();
 
-      // Handle deep link: /start keyword
+      // /start with deep link: /start keyword
       if (text.startsWith('/start')) {
         const parts = text.split(' ');
         if (parts.length > 1) {
@@ -106,7 +116,7 @@ const pdf = () => async (ctx: Context) => {
         }
       }
 
-      // Handle plain text keyword
+      // Direct keyword (like "neetpyq1")
       const keyword = text.toLowerCase();
       return await handlePdfCommand(ctx, keyword, messageMap);
     }
