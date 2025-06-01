@@ -1,4 +1,4 @@
-import { Context } from 'telegraf';
+import { Context, Markup } from 'telegraf';
 import createDebug from 'debug';
 import { db, ref, onValue, set, DataSnapshot } from '../utils/firebase';
 
@@ -8,53 +8,49 @@ const ADMIN_ID = 6930703214;
 
 const ITEMS_PER_PAGE = 10;
 
+interface SessionData {
+  awaitingKeys?: { batch: string; subject: string; chapter: string };
+}
+
+interface MyContext extends Context {
+  session: SessionData;
+}
+
 // Fetch subjects from Firebase
-const getSubjects = (batch: string): Promise<string[]> => {
+export const getSubjects = (batch: string): Promise<string[]> => {
   return new Promise((resolve) => {
     const subjectsRef = ref(db, `batches/${batch}`);
     onValue(subjectsRef, (snapshot: DataSnapshot) => {
       const data = snapshot.val();
-      if (data) {
-        resolve(Object.keys(data));
-      } else {
-        resolve([]);
-      }
+      resolve(data ? Object.keys(data) : []);
     }, { onlyOnce: true });
   });
 };
 
 // Fetch chapters for a subject
-const getChapters = (batch: string, subject: string): Promise<string[]> => {
+export const getChapters = (batch: string, subject: string): Promise<string[]> => {
   return new Promise((resolve) => {
     const chaptersRef = ref(db, `batches/${batch}/${subject}`);
     onValue(chaptersRef, (snapshot: DataSnapshot) => {
       const data = snapshot.val();
-      if (data) {
-        resolve(Object.keys(data));
-      } else {
-        resolve([]);
-      }
+      resolve(data ? Object.keys(data) : []);
     }, { onlyOnce: true });
   });
 };
 
 // Fetch keys for a chapter
-const getKeys = (batch: string, subject: string, chapter: string): Promise<Record<string, string>> => {
+export const getKeys = (batch: string, subject: string, chapter: string): Promise<Record<string, string>> => {
   return new Promise((resolve) => {
     const keysRef = ref(db, `batches/${batch}/${subject}/${chapter}/keys`);
     onValue(keysRef, (snapshot: DataSnapshot) => {
       const data = snapshot.val();
-      if (data) {
-        resolve(data);
-      } else {
-        resolve({});
-      }
+      resolve(data || {});
     }, { onlyOnce: true });
   });
 };
 
 // Handle /yakeen command
-const handleYakeenCommand = async (ctx: Context, keyword: string) => {
+const handleYakeenCommand = async (ctx: MyContext, keyword: string) => {
   debug(`Handling Yakeen command for: ${keyword}`);
   const batch = '2026';
   const subjects = await getSubjects(batch);
@@ -69,7 +65,8 @@ const handleYakeenCommand = async (ctx: Context, keyword: string) => {
           await ctx.telegram.copyMessage(
             ctx.chat!.id,
             CHANNEL_ID,
-            parseInt(keys[keyword])
+            parseInt(keys[keyword]),
+            {} // Add options object to satisfy the 4-argument signature
           );
           return true;
         } catch (err) {
@@ -85,11 +82,10 @@ const handleYakeenCommand = async (ctx: Context, keyword: string) => {
 };
 
 // Main yakeen command handler
-export const yakeen = () => async (ctx: Context) => {
+export const yakeen = () => async (ctx: MyContext) => {
   try {
-    const message = ctx.message;
-    if (message && 'text' in message) {
-      const text = message.text.trim().toLowerCase();
+    if ('text' in ctx.message) {
+      const text = ctx.message.text.trim().toLowerCase();
       if (text.startsWith('/yakeen_')) {
         const keyword = text.replace('/yakeen_', '');
         await handleYakeenCommand(ctx, keyword);
@@ -104,7 +100,7 @@ export const yakeen = () => async (ctx: Context) => {
 };
 
 // Handle subject selection for /publish
-export const handleYakeenSubject = async (ctx: Context, batch: string) => {
+export const handleYakeenSubject = async (ctx: MyContext, batch: string) => {
   if (ctx.from?.id !== ADMIN_ID) {
     await ctx.answerCbQuery('You are not authorized.');
     return;
@@ -130,7 +126,7 @@ export const handleYakeenSubject = async (ctx: Context, batch: string) => {
 };
 
 // Handle chapter selection with pagination
-export const handleYakeenChapter = async (ctx: Context, batch: string, subject: string) => {
+export const handleYakeenChapter = async (ctx: MyContext, batch: string, subject: string) => {
   if (ctx.from?.id !== ADMIN_ID) {
     await ctx.answerCbQuery('You are not authorized.');
     return;
@@ -147,7 +143,7 @@ export const handleYakeenChapter = async (ctx: Context, batch: string, subject: 
 };
 
 // Send chapter page with pagination
-const sendChapterPage = async (ctx: Context, batch: string, subject: string, chapters: string[], page: number) => {
+const sendChapterPage = async (ctx: MyContext, batch: string, subject: string, chapters: string[], page: number) => {
   const totalPages = Math.ceil(chapters.length / ITEMS_PER_PAGE);
   const start = (page - 1) * ITEMS_PER_PAGE;
   const end = start + ITEMS_PER_PAGE;
@@ -178,7 +174,7 @@ const sendChapterPage = async (ctx: Context, batch: string, subject: string, cha
 };
 
 // Handle chapter pagination
-export const handleYakeenPagination = async (ctx: Context, batch: string, subject: string, page: string) => {
+export const handleYakeenPagination = async (ctx: MyContext, batch: string, subject: string, page: string) => {
   if (ctx.from?.id !== ADMIN_ID) {
     await ctx.answerCbQuery('You are not authorized.');
     return;
@@ -190,7 +186,7 @@ export const handleYakeenPagination = async (ctx: Context, batch: string, subjec
 };
 
 // Handle key input after chapter selection
-export const handleYakeenKeys = async (ctx: Context, batch: string, subject: string, chapter: string) => {
+export const handleYakeenKeys = async (ctx: MyContext, batch: string, subject: string, chapter: string) => {
   if (ctx.from?.id !== ADMIN_ID) {
     await ctx.answerCbQuery('You are not authorized.');
     return;
