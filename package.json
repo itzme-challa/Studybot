@@ -7,13 +7,13 @@
   "homepage": "https://github.com/itzfew/eduhub-bot",
   "dependencies": {
     "@vercel/node": "^3.2.24",
-    "axios": "^1.7.7", // Added for fetching CSV
-    "csv-parse": "^5.5.6", // Added for parsing CSV
+    "axios": "^1.7.7", 
+    "csv-parse": "^5.5.6",
     "firebase": "^10.14.1",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
-    "@types/csv-parse": "^1.2.2", // Added for csv-parse types
+    "@types/csv-parse": "^1.2.2",
     "@types/debug": "^4.1.12",
     "@types/node": "^22.8.7",
     "@vercel/ncc": "^0.38.2",
