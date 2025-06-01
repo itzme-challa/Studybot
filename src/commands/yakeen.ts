@@ -1,6 +1,6 @@
 import { Context } from 'telegraf';
 import createDebug from 'debug';
-import { db, ref, onValue, set } from '../utils/firebase';
+import { db, ref, onValue, set, DataSnapshot } from '../utils/firebase';
 
 const debug = createDebug('bot:yakeen_handler');
 const CHANNEL_ID = process.env.CHANNEL_ID || '-1002277073649';
@@ -12,7 +12,7 @@ const ITEMS_PER_PAGE = 10;
 const getSubjects = (batch: string): Promise<string[]> => {
   return new Promise((resolve) => {
     const subjectsRef = ref(db, `batches/${batch}`);
-    onValue(subjectsRef, (snapshot) => {
+    onValue(subjectsRef, (snapshot: DataSnapshot) => {
       const data = snapshot.val();
       if (data) {
         resolve(Object.keys(data));
@@ -27,7 +27,7 @@ const getSubjects = (batch: string): Promise<string[]> => {
 const getChapters = (batch: string, subject: string): Promise<string[]> => {
   return new Promise((resolve) => {
     const chaptersRef = ref(db, `batches/${batch}/${subject}`);
-    onValue(chaptersRef, (snapshot) => {
+    onValue(chaptersRef, (snapshot: DataSnapshot) => {
       const data = snapshot.val();
       if (data) {
         resolve(Object.keys(data));
@@ -42,7 +42,7 @@ const getChapters = (batch: string, subject: string): Promise<string[]> => {
 const getKeys = (batch: string, subject: string, chapter: string): Promise<Record<string, string>> => {
   return new Promise((resolve) => {
     const keysRef = ref(db, `batches/${batch}/${subject}/${chapter}/keys`);
-    onValue(keysRef, (snapshot) => {
+    onValue(keysRef, (snapshot: DataSnapshot) => {
       const data = snapshot.val();
       if (data) {
         resolve(data);
@@ -56,7 +56,7 @@ const getKeys = (batch: string, subject: string, chapter: string): Promise<Recor
 // Handle /yakeen command
 const handleYakeenCommand = async (ctx: Context, keyword: string) => {
   debug(`Handling Yakeen command for: ${keyword}`);
-  const batch = '2026'; // Assuming batch 2026 for now
+  const batch = '2026';
   const subjects = await getSubjects(batch);
 
   for (const subject of subjects) {
@@ -69,8 +69,7 @@ const handleYakeenCommand = async (ctx: Context, keyword: string) => {
           await ctx.telegram.copyMessage(
             ctx.chat!.id,
             CHANNEL_ID,
-            parseInt(keys[keyword]),
-            { reply_to_message_id: ctx.message?.message_id }
+            parseInt(keys[keyword])
           );
           return true;
         } catch (err) {
@@ -203,48 +202,7 @@ export const handleYakeenKeys = async (ctx: Context, batch: string, subject: str
   );
   await ctx.answerCbQuery();
 
-  // Set up a one-time listener for the next message
+  // Set up session for key input
   ctx.session = ctx.session || {};
   ctx.session.awaitingKeys = { batch, subject, chapter };
 };
-
-// Handle text input for keys
-bot.on('text', async (ctx) => {
-  if (ctx.from?.id !== ADMIN_ID || !ctx.session?.awaitingKeys) return;
-
-  const { batch, subject, chapter } = ctx.session.awaitingKeys;
-  const text = ctx.message.text.trim();
-
-  // Parse key:id pairs
-  const keyPairs = text.split(',').map(pair => {
-    const [key, id] = pair.split(':').map(s => s.trim());
-    return { key, id };
-  });
-
-  // Validate key pairs
-  const invalidPairs = keyPairs.filter(pair => !pair.key || isNaN(parseInt(pair.id)));
-  if (invalidPairs.length > 0) {
-    await ctx.reply('Invalid format. Please use: key1:id1,key2:id2,...');
-    return;
-  }
-
-  // Save keys to Firebase
-  try {
-    const keysRef = ref(db, `batches/${batch}/${subject}/${chapter}/keys`);
-    const currentKeys = await getKeys(batch, subject, chapter);
-    const updatedKeys = { ...currentKeys };
-
-    for (const { key, id } of keyPairs) {
-      updatedKeys[key] = id;
-    }
-
-    await set(keysRef, updatedKeys);
-    await ctx.reply(`Successfully added/updated ${keyPairs.length} keys for ${chapter.replace(/_/g, ' ')} in ${subject}.`);
-  } catch (err) {
-    console.error('Error saving keys to Firebase:', err);
-    await ctx.reply('Error saving keys. Please try again or contact @itzfew.');
-  }
-
-  // Clear session
-  delete ctx.session.awaitingKeys;
-});
