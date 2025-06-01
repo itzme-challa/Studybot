@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
-    "target": "es2018",
-    "module": "commonjs",
     "strict": true,
+    "target": "esnext",
+    "module": "commonjs",
+    "moduleResolution": "node",
     "esModuleInterop": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "outDir": "./public",
-    "rootDir": "./src",
-    "types": ["node"]
+    "sourceMap": true,
+    "outDir": "public",
+    "lib": ["esnext", "dom"]
   },
-  "include": ["src/**/*"],
+  "include": ["src", "src/types"],
   "exclude": ["node_modules"]
 }
