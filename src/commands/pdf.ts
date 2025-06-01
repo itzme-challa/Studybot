@@ -6,7 +6,7 @@ import { Readable } from 'stream';
 
 const debug = createDebug('bot:pdf_handler');
 
-// Ensure this chat ID is correct and bot has access
+// Make sure this ID is correct and the bot has access
 const fileStorageChatId = -1002481747949;
 
 // --- Fetch and parse CSV from Google Drive ---
@@ -29,12 +29,10 @@ const fetchMessageMap = async (): Promise<Record<string, number>> => {
           })
         )
         .on('data', (row) => {
-          if (row.keyword && row.messageId) {
-            const keyword = row.keyword.toLowerCase();
-            const messageId = parseInt(row.messageId, 10);
-            if (!isNaN(messageId)) {
-              messageMap[keyword] = messageId;
-            }
+          const keyword = row.keyword?.trim().toLowerCase();
+          const messageId = parseInt(row.messageId?.trim(), 10);
+          if (keyword && !isNaN(messageId)) {
+            messageMap[keyword] = messageId;
           }
         })
         .on('end', () => {
@@ -42,12 +40,12 @@ const fetchMessageMap = async (): Promise<Record<string, number>> => {
           resolve(messageMap);
         })
         .on('error', (error) => {
-          debug('CSV parsing error:', error);
+          console.error('CSV parsing error:', error);
           reject(error);
         });
     });
   } catch (error) {
-    debug('Failed to fetch or parse CSV:', error);
+    console.error('Failed to fetch or parse CSV:', error);
     throw new Error('Could not retrieve file list. Please try again later.');
   }
 };
@@ -56,23 +54,35 @@ const fetchMessageMap = async (): Promise<Record<string, number>> => {
 const handlePdfCommand = async (ctx: Context, keyword: string, messageMap: Record<string, number>) => {
   const messageId = messageMap[keyword];
   if (!messageId) {
-    await ctx.reply('Invalid keyword. Please check and try again.');
+    await ctx.reply('❌ Invalid keyword. Please check and try again.');
     return;
   }
 
   try {
     debug(`Sending PDF for keyword: ${keyword} (messageId: ${messageId})`);
-
-    await ctx.reply('Here is your file. Save or forward it — this message will not be stored permanently.');
+    await ctx.reply('📎 Here is your file. Save or forward it — this message will not be stored permanently.');
 
     await ctx.telegram.copyMessage(
       ctx.chat!.id,
       fileStorageChatId,
       messageId
     );
-  } catch (err) {
-    debug('Telegram copyMessage error:', err);
-    await ctx.reply('Unable to fetch the file. Make sure the keyword is correct or try again later.');
+  } catch (err: any) {
+    console.error('Telegram copyMessage error:', err.response?.data || err.message || err);
+
+    await ctx.reply('⚠️ Failed to fetch the file using `copyMessage`. Trying fallback...');
+
+    try {
+      // Fallback: Try forwarding the message instead
+      await ctx.telegram.forwardMessage(
+        ctx.chat!.id,
+        fileStorageChatId,
+        messageId
+      );
+    } catch (fallbackErr: any) {
+      console.error('Telegram forwardMessage error:', fallbackErr.response?.data || fallbackErr.message || fallbackErr);
+      await ctx.reply('❌ Unable to fetch the file. Make sure the keyword is correct or try again later.');
+    }
   }
 };
 
@@ -85,24 +95,24 @@ const pdf = () => async (ctx: Context) => {
     if (message && 'text' in message) {
       const text = message.text.trim();
 
-      // /start with deep link: /start keyword
+      // Handle deep link: /start keyword
       if (text.startsWith('/start')) {
         const parts = text.split(' ');
         if (parts.length > 1) {
           const keyword = parts[1].toLowerCase();
           return await handlePdfCommand(ctx, keyword, messageMap);
         } else {
-          return await ctx.reply('Send a valid command or keyword to fetch a file.');
+          return await ctx.reply('ℹ️ Send a valid command or keyword to fetch a file.');
         }
       }
 
-      // Text command like "neetpyq1"
+      // Handle plain text keyword
       const keyword = text.toLowerCase();
       return await handlePdfCommand(ctx, keyword, messageMap);
     }
-  } catch (err) {
-    debug('PDF command handler error:', err);
-    await ctx.reply('An error occurred while fetching your file. Please contact @NeetAspirantsBot for help.');
+  } catch (err: any) {
+    console.error('PDF command handler error:', err.response?.data || err.message || err);
+    await ctx.reply('❌ An error occurred while fetching your file. Please contact @NeetAspirantsBot for help.');
   }
 };
 
