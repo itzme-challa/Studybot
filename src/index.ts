@@ -134,14 +134,16 @@ bot.start(async (ctx: MyContext) => {
 bot.on('text', async (ctx: MyContext) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
-  const text = ctx.message.text?.toLowerCase();
+  if (!('text' in ctx.message)) return; // Type guard for text messages
+
+  const text = ctx.message.text.toLowerCase();
   if (['help', 'study', 'material', 'pdf', 'pdfs'].includes(text)) {
     await help()(ctx);
-  } else if (text?.startsWith('/yakeen_')) {
+  } else if (text.startsWith('/yakeen_')) {
     await yakeen()(ctx);
   } else if (ctx.from?.id === ADMIN_ID && ctx.session?.awaitingKeys) {
     const { batch, subject, chapter } = ctx.session.awaitingKeys;
-    const keyPairs = text?.split(',').map((pair: string) => {
+    const keyPairs = text.split(',').map((pair: string) => {
       const [key, id] = pair.split(':').map((s: string) => s.trim());
       return { key, id };
     });
@@ -176,11 +178,11 @@ bot.on('text', async (ctx: MyContext) => {
 
 // --- New Member Welcome (Group) ---
 bot.on('new_chat_members', async (ctx: MyContext) => {
-  if ('new_chat_members' in ctx.message) {
-    for (const member of ctx.message.new_chat_members) {
-      if (member.username === ctx.botInfo.username) {
-        await ctx.reply('Thanks for adding me! Type /help to get started.');
-      }
+  if (!('new_chat_members' in ctx.message)) return; // Type guard for new_chat_members
+
+  for (const member of ctx.message.new_chat_members) {
+    if (member.username === ctx.botInfo.username) {
+      await ctx.reply('Thanks for adding me! Type /help to get started.');
     }
   }
 });
