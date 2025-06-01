@@ -1,11 +1,20 @@
 {
   "version": 2,
-  "public": true,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "api/index.ts"
+      "src": "src/index.ts",
+      "use": "@vercel/node"
     }
   ],
-  "redirects": [{ "source": "/", "destination": "/api", "permanent": false }]
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/index.ts"
+    }
+  ],
+  "build": {
+    "env": {
+      "NPM_CONFIG_PRODUCTION": "false"
+    }
+  }
 }
