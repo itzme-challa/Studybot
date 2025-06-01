@@ -41,11 +41,14 @@ let accessToken: string | null = null;
 
 async function verifyMessageExists(ctx: Context, messageId: number): Promise<boolean> {
   try {
-    // Try to get the message to verify it exists
-    await ctx.telegram.getMessage(fileStorageChatId, messageId);
+    // Use callApi to invoke Telegram's getMessage method
+    await ctx.telegram.callApi('getMessage', {
+      chat_id: fileStorageChatId,
+      message_id: messageId,
+    });
     return true;
   } catch (error) {
-    debug(`Message ${messageId} not found in storage channel`);
+    debug(`Message ${messageId} not found in storage channel: ${error}`);
     return false;
   }
 }
@@ -102,7 +105,7 @@ async function createTelegraphPage(query: string, matches: MaterialItem[]): Prom
           {
             tag: 'a',
             attrs: {
-              href: `https://t.me/NeetJeestudy_bot?start=${match.path.replace(/\//g, '_')}`
+              href: `https://t.me/NeetJeestudy_bot?start=${match.path.replace(/\//g, '__')}`
             },
             children: [match.path.split('/').pop() || match.path]
           }
@@ -157,7 +160,7 @@ async function findSimilarResources(ctx: Context, path: ResourcePath): Promise<M
 
     const resources = snapshot.val();
     const items = Object.entries(resources).map(([key, messageId]) => ({
-      path: `${searchPath}/${key}`.replace(/\//g, '_'),
+      path: `${searchPath}/${key}`.replace(/\//g, '__'),
       messageId: messageId as number,
       exists: true // Will be verified later
     }));
@@ -175,7 +178,7 @@ async function findSimilarResources(ctx: Context, path: ResourcePath): Promise<M
 }
 
 const parseCommand = (text: string): ResourcePath | null => {
-  const parts = text.trim().split('_');
+  const parts = text.trim().split('__');
   
   if (parts.length < 3) return null;
 
@@ -184,7 +187,7 @@ const parseCommand = (text: string): ResourcePath | null => {
     subject: parts[1],
     chapter: parts.length > 3 ? parts[2] : undefined,
     resourceType: parts.length > 3 ? parts[3] : parts[2],
-    resourceKey: parts.length > 3 ? parts.slice(3).join('_') : parts.slice(2).join('_')
+    resourceKey: parts.length > 3 ? parts.slice(3).join('__') : parts.slice(2).join('__')
   };
 };
 
@@ -269,7 +272,7 @@ const pdf = () => async (ctx: Context) => {
         if (resourcePath) {
           await handlePdfCommand(ctx, resourcePath, commandParts[1]);
         } else {
-          await ctx.reply('Invalid command format. Please use the correct format.');
+          await ctx.reply('Invalid command format. Please use: batch__subject__chapter__resource');
         }
         return;
       }
@@ -280,7 +283,7 @@ const pdf = () => async (ctx: Context) => {
     if (resourcePath) {
       await handlePdfCommand(ctx, resourcePath, message.text);
     } else {
-      await ctx.reply('Invalid command format. Please use: batch_subject_chapter_resource');
+      await ctx.reply('Invalid command format. Please use: batch__subject__chapter__resource');
     }
   } catch (err) {
     console.error('PDF command handler error:', err);
