@@ -46,7 +46,9 @@ bot.command('start', async (ctx) => {
 
   if (!alreadyNotified && chat.id !== ADMIN_ID) {
     const name = user.first_name || (chat.type === 'group' || chat.type === 'supergroup' ? chat.title : 'Unknown') || 'Unknown';
-    const username = user.username ? `@${user.username}` : (chat.type === 'group' || chat.type === 'supergroup' ? chat.username ? `@${chat.username}` : 'N/A' : 'N/A');
+    const username = user.username 
+      ? `@${user.username}` 
+      : (chat.type === 'supergroup' && 'username' in chat ? `@${chat.username}` : 'N/A');
     const chatTypeLabel = chat.type.charAt(0).toUpperCase() + chat.type.slice(1);
 
     await ctx.telegram.sendMessage(
@@ -147,7 +149,7 @@ bot.on('message', async (ctx) => {
 
       try {
         await ctx.telegram.sendMessage(ADMIN_ID, header, { parse_mode: 'Markdown' });
-        await ctx.forwardMessage(ADMIN_ID, chat.id, message.message_id);
+        await ctx.forwardMessage(ADMIN_ID as number, chat.id as number, message.message_id as number);
       } catch (err) {
         console.error('Failed to forward non-text message:', err);
       }
