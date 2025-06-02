@@ -1,18 +1,15 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, onValue, remove, DataSnapshot } from 'firebase/database';
+import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyDNME0C__0yE84_fmabt9_qhnv7l4Y2osg',
-  authDomain: 'telegrambot-d9bde.firebaseapp.com',
-  databaseURL: 'https://telegrambot-d9bde-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId: 'telegrambot-d9bde',
-  storageBucket: 'telegrambot-d9bde.firebasestorage.app',
-  messagingSenderId: '1016643360568',
-  appId: '1:1016643360568:web:a495de89c5f7f983e6d3cd',
-  measurementId: 'G-ZQLEPBPWZV',
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,           // REQUIRED
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
+  databaseURL: process.env.FIREBASE_DATABASE_URL        // REQUIRED
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-export { db, ref, push, set, onValue, remove, DataSnapshot };
+export const db = getDatabase(app);
