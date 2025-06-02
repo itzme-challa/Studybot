@@ -1,7 +1,9 @@
 import { Telegraf } from 'telegraf';
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { saveToSheet } from './utils/saveToSheet';
-import { fetchChatIdsFromSheet } from './utils/chatStore';
+import { fetchChatIdsFromFirebase, getLogsByDate } from './utils/chatStore';
+import { saveToFirebase } from './utils/saveToFirebase';
+import { logMessage } from './utils/logMessage';
+
 import { about } from './commands/about';
 import { help, handleHelpPagination } from './commands/help';
 import { pdf } from './commands/pdf';
@@ -28,13 +30,37 @@ const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
 helpTriggers.forEach(trigger => bot.command(trigger, help()));
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
 
+bot.command('start', async (ctx) => {
+  const chat = ctx.chat;
+  const user = ctx.from;
+  if (!chat || !user) return;
+
+  const alreadyNotified = await saveToFirebase(chat);
+
+  if (isPrivateChat(chat.type)) {
+    await greeting()(ctx);
+    await logMessage(chat.id, '/start', user);
+  }
+
+  if (!alreadyNotified && chat.id !== ADMIN_ID) {
+    const name = user.first_name || chat.title || 'Unknown';
+    const username = user.username ? `@${user.username}` : chat.username ? `@${chat.username}` : 'N/A';
+    const chatTypeLabel = chat.type.charAt(0).toUpperCase() + chat.type.slice(1);
+
+    await ctx.telegram.sendMessage(
+      ADMIN_ID,
+      `*New ${chatTypeLabel} started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
+      { parse_mode: 'Markdown' }
+    );
+  }
+});
+
 // Admin: /users
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
-
   try {
-    const chatIds = await fetchChatIdsFromSheet();
-    await ctx.reply(`📊 Total users: ${chatIds.length}`, {
+    const chatIds = await fetchChatIdsFromFirebase();
+    await ctx.reply(`📊 Total interacting entities: ${chatIds.length}`, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
@@ -46,62 +72,94 @@ bot.command('users', async (ctx) => {
   }
 });
 
+// Admin: /logs
+bot.command('logs', async (ctx) => {
+  if (ctx.from?.id !== ADMIN_ID) return;
+  const parts = ctx.message?.text?.split(' ') || [];
+  if (parts.length < 2)
+    return ctx.reply("Usage: /logs <YYYY-MM-DD> or /logs <chatid>");
+
+  const dateOrChatId = parts[1];
+  try {
+    const logs = await getLogsByDate(dateOrChatId);
+    if (logs === 'No logs found for this date.') {
+      await ctx.reply(logs);
+    } else {
+      await ctx.replyWithDocument({
+        source: Buffer.from(logs, 'utf-8'),
+        filename: `logs-${dateOrChatId}.txt`,
+      });
+    }
+  } catch (err) {
+    console.error('Error fetching logs:', err);
+    await ctx.reply('❌ Error fetching logs.');
+  }
+});
+
 // Admin: /broadcast
 setupBroadcast(bot);
 
-// --- Callback Handler ---
-bot.on('callback_query', async (ctx) => {
-  const callback = ctx.callbackQuery;
-  if ('data' in callback) {
-    const data = callback.data;
+// --- Main Handler: Log + Search ---
 
-    if (data.startsWith('help_page_')) {
-      await handleHelpPagination()(ctx);
-    } else if (data === 'refresh_users' && ctx.from?.id === ADMIN_ID) {
-      try {
-        const chatIds = await fetchChatIdsFromSheet();
-        await ctx.editMessageText(`📊 Total users: ${chatIds.length}`, {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [[{ text: 'Refresh', callback_data: 'refresh_users' }]],
-          },
-        });
-      } catch (err) {
-        console.error('Error refreshing users:', err);
-        await ctx.answerCbQuery('Failed to refresh.');
-      }
-    } else {
-      await ctx.answerCbQuery('Unknown action');
-    }
-  } else {
-    await ctx.answerCbQuery('Unsupported callback type');
-  }
-});
-
-// --- /start ---
-bot.start(async (ctx) => {
-  if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
-
-  const user = ctx.from;
+bot.on('message', async (ctx) => {
   const chat = ctx.chat;
+  const user = ctx.from;
+  const message = ctx.message;
 
-  await greeting()(ctx);
-  await pdf()(ctx);
+  if (!chat?.id || !user) return;
 
-  const alreadyNotified = await saveToSheet(chat);
-  console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
+  const alreadyNotified = await saveToFirebase(chat);
 
-  if (chat.id !== ADMIN_ID && !alreadyNotified) {
-    const name = user?.first_name || 'Unknown';
-    const username = user?.username ? `@${user.username}` : 'N/A';
-    await ctx.telegram.sendMessage(
-      ADMIN_ID,
-      `*New user started the bot!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
-      { parse_mode: 'Markdown' }
-    );
+  // Logging
+  if (isPrivateChat(chat.type)) {
+    let logText = '[Unknown/Unsupported message type]';
+
+    if (message.text) {
+      logText = message.text;
+    } else if (message.photo) {
+      logText = '[Photo message]';
+    } else if (message.document) {
+      logText = `[Document: ${message.document.file_name || 'Unnamed'}]`;
+    } else if (message.video) {
+      logText = '[Video message]';
+    } else if (message.voice) {
+      logText = '[Voice message]';
+    } else if (message.audio) {
+      logText = '[Audio message]';
+    } else if (message.sticker) {
+      logText = `[Sticker: ${message.sticker.emoji || 'Sticker'}]`;
+    } else if (message.contact) {
+      logText = '[Contact shared]';
+    } else if (message.location) {
+      const loc = message.location;
+      logText = `[Location: ${loc.latitude}, ${loc.longitude}]`;
+    } else if (message.poll) {
+      logText = `[Poll: ${message.poll.question}]`;
+    }
+
+    try {
+      await logMessage(chat.id, logText, user);
+    } catch (err) {
+      console.error('Failed to log message:', err);
+    }
+
+    // Forward non-text messages to admin
+    if (!message.text) {
+      const name = user.first_name || 'Unknown';
+      const username = user.username ? `@${user.username}` : 'N/A';
+      const time = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+      const header = `*Non-text message received!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Time:* ${time}\n`;
+
+      try {
+        await ctx.telegram.sendMessage(ADMIN_ID, header, { parse_mode: 'Markdown' });
+        await ctx.forwardMessage(ADMIN_ID, chat.id, message.message_id);
+      } catch (err) {
+        console.error('Failed to forward non-text message:', err);
+      }
+    }
   }
-});
-
+  
 // --- Text Handler ---
 bot.on('text', async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
@@ -121,26 +179,6 @@ bot.on('new_chat_members', async (ctx) => {
     if (member.username === ctx.botInfo.username) {
       await ctx.reply('Thanks for adding me! Type /help to get started.');
     }
-  }
-});
-
-// --- Message Tracker for Private Chats ---
-bot.on('message', async (ctx) => {
-  const chat = ctx.chat;
-  if (!chat?.id || !isPrivateChat(chat.type)) return;
-
-  const alreadyNotified = await saveToSheet(chat);
-  console.log(`Saved chat ID: ${chat.id} (${chat.type})`);
-
-  if (chat.id !== ADMIN_ID && !alreadyNotified) {
-    const user = ctx.from;
-    const name = user?.first_name || 'Unknown';
-    const username = user?.username ? `@${user.username}` : 'N/A';
-    await ctx.telegram.sendMessage(
-      ADMIN_ID,
-      `*New user interacted!*\n\n*Name:* ${name}\n*Username:* ${username}\n*Chat ID:* ${chat.id}\n*Type:* ${chat.type}`,
-      { parse_mode: 'Markdown' }
-    );
   }
 });
 
