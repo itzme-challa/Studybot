@@ -149,7 +149,8 @@ bot.on('message', async (ctx) => {
 
       try {
         await ctx.telegram.sendMessage(ADMIN_ID, header, { parse_mode: 'Markdown' });
-        await ctx.forwardMessage(ADMIN_ID as number, chat.id as number, message.message_id as number);
+        // Type assertion to bypass TS2554
+        await (ctx.telegram.forwardMessage as any)(ADMIN_ID, chat.id, message.message_id);
       } catch (err) {
         console.error('Failed to forward non-text message:', err);
       }
