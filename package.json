@@ -15,6 +15,7 @@
   "devDependencies": {
     "@types/debug": "^4.1.12",
     "@types/node": "^22.8.7",
+    "@types/telegraf": "^4.16.3",
     "@vercel/ncc": "^0.38.2",
     "debug": "^4.3.7",
     "dotenv-cli": "^7.4.2",
