@@ -3,11 +3,10 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { fetchChatIdsFromFirebase, getLogsByDate } from './utils/chatStore';
 import { saveToFirebase } from './utils/saveToFirebase';
 import { logMessage } from './utils/logMessage';
-
 import { about } from './commands/about';
 import { help, handleHelpPagination } from './commands/help';
 import { pdf } from './commands/pdf';
-import { greeting} from './text/greeting';
+import { greeting } from './text/greeting';
 import { production, development } from './core';
 import { isPrivateChat } from './utils/groupSettings';
 import { setupBroadcast } from './commands/broadcast';
@@ -21,11 +20,14 @@ console.log(`Running bot in ${ENVIRONMENT} mode`);
 
 const bot = new Telegraf(BOT_TOKEN);
 
+// Vercel export
+export const startVercel = async (req: VercelRequest, res: VercelResponse) => {
+  await production(req, res, bot);
+};
 
 // --- Commands ---
 bot.command('about', about());
 
-// Multiple triggers for help/material/pdf content
 const helpTriggers = ['help', 'study', 'material', 'pdf', 'pdfs'];
 helpTriggers.forEach(trigger => bot.command(trigger, help()));
 bot.hears(/^(help|study|material|pdf|pdfs)$/i, help());
@@ -43,8 +45,8 @@ bot.command('start', async (ctx) => {
   }
 
   if (!alreadyNotified && chat.id !== ADMIN_ID) {
-    const name = user.first_name || chat.title || 'Unknown';
-    const username = user.username ? `@${user.username}` : chat.username ? `@${chat.username}` : 'N/A';
+    const name = user.first_name || (chat.type === 'group' || chat.type === 'supergroup' ? chat.title : 'Unknown') || 'Unknown';
+    const username = user.username ? `@${user.username}` : (chat.type === 'group' || chat.type === 'supergroup' ? chat.username ? `@${chat.username}` : 'N/A' : 'N/A');
     const chatTypeLabel = chat.type.charAt(0).toUpperCase() + chat.type.slice(1);
 
     await ctx.telegram.sendMessage(
@@ -55,7 +57,6 @@ bot.command('start', async (ctx) => {
   }
 });
 
-// Admin: /users
 bot.command('users', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return ctx.reply('You are not authorized.');
   try {
@@ -72,7 +73,6 @@ bot.command('users', async (ctx) => {
   }
 });
 
-// Admin: /logs
 bot.command('logs', async (ctx) => {
   if (ctx.from?.id !== ADMIN_ID) return;
   const parts = ctx.message?.text?.split(' ') || [];
@@ -96,10 +96,7 @@ bot.command('logs', async (ctx) => {
   }
 });
 
-// Admin: /broadcast
 setupBroadcast(bot);
-
-// --- Main Handler: Log + Search ---
 
 bot.on('message', async (ctx) => {
   const chat = ctx.chat;
@@ -110,30 +107,28 @@ bot.on('message', async (ctx) => {
 
   const alreadyNotified = await saveToFirebase(chat);
 
-  // Logging
   if (isPrivateChat(chat.type)) {
     let logText = '[Unknown/Unsupported message type]';
 
-    if (message.text) {
+    if ('text' in message) {
       logText = message.text;
-    } else if (message.photo) {
+    } else if ('photo' in message) {
       logText = '[Photo message]';
-    } else if (message.document) {
+    } else if ('document' in message) {
       logText = `[Document: ${message.document.file_name || 'Unnamed'}]`;
-    } else if (message.video) {
+    } else if ('video' in message) {
       logText = '[Video message]';
-    } else if (message.voice) {
+    } else if ('voice' in message) {
       logText = '[Voice message]';
-    } else if (message.audio) {
+    } else if ('audio' in message) {
       logText = '[Audio message]';
-    } else if (message.sticker) {
+    } else if ('sticker' in message) {
       logText = `[Sticker: ${message.sticker.emoji || 'Sticker'}]`;
-    } else if (message.contact) {
+    } else if ('contact' in message) {
       logText = '[Contact shared]';
-    } else if (message.location) {
-      const loc = message.location;
-      logText = `[Location: ${loc.latitude}, ${loc.longitude}]`;
-    } else if (message.poll) {
+    } else if ('location' in message) {
+      logText = `[Location: ${message.location.latitude}, ${message.location.longitude}]`;
+    } else if ('poll' in message) {
       logText = `[Poll: ${message.poll.question}]`;
     }
 
@@ -143,8 +138,7 @@ bot.on('message', async (ctx) => {
       console.error('Failed to log message:', err);
     }
 
-    // Forward non-text messages to admin
-    if (!message.text) {
+    if (!('text' in message)) {
       const name = user.first_name || 'Unknown';
       const username = user.username ? `@${user.username}` : 'N/A';
       const time = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
@@ -159,8 +153,8 @@ bot.on('message', async (ctx) => {
       }
     }
   }
-  
-// --- Text Handler ---
+});
+
 bot.on('text', async (ctx) => {
   if (!ctx.chat || !isPrivateChat(ctx.chat.type)) return;
 
@@ -173,7 +167,6 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// --- New Member Welcome (Group) ---
 bot.on('new_chat_members', async (ctx) => {
   for (const member of ctx.message.new_chat_members) {
     if (member.username === ctx.botInfo.username) {
@@ -181,11 +174,6 @@ bot.on('new_chat_members', async (ctx) => {
     }
   }
 });
-
-// --- Vercel Export ---
-export const startVercel = async (req: VercelRequest, res: VercelResponse) => {
-  await production(req, res, bot);
-};
 
 if (ENVIRONMENT !== 'production') {
   development(bot);
