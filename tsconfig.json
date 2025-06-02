@@ -1,15 +1,17 @@
 {
   "compilerOptions": {
-    "strict": true,
-    "target": "esnext",
-    "module": "commonjs",
+    "target": "ESNext",
+    "module": "CommonJS",
     "moduleResolution": "node",
+    "lib": ["ESNext", "DOM"],
+    "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "sourceMap": true,
-    "outDir": "public",
-    "lib": ["esnext", "dom"]
+    "noEmit": false,
+    "rootDir": "./src",
+    "outDir": "./public"
   },
   "include": ["src", "src/types"],
   "exclude": ["node_modules"]
